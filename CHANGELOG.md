@@ -10,3 +10,4 @@ All notable changes to this project will be documented in this file.
 - The app's upgraded build setup was verified end-to-end and automated tests were added to confirm it works. There is no visible change to how the app looks or works.
 - The repository's developer tooling for agents was adjusted internally. There is no visible change to how the app looks or works.
 - The app's build process now runs on Java 17, a newer version of the Java runtime. There is no visible change to how the app looks or works.
+- The build now automatically downloads a compatible Java development kit if one is missing, so the project builds without extra manual setup. There is no visible change to how the app looks or works.
