@@ -98,7 +98,7 @@ fun CalendarScreen(
                 }
             }
 
-            Divider(modifier = Modifier.padding(vertical = 8.dp))
+            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
             // Agenda: either the selected day's events, or the overall upcoming/overdue list
             val agendaTitle: String
