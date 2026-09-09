@@ -9,6 +9,9 @@
 .cxx
 local.properties
 
+# Pipeline git worktrees (/.worktrees/)
+/.worktrees/
+
 # Android Studio generated files
 *.apk
 *.ap_
