@@ -42,7 +42,7 @@ abstract class AppDatabase : RoomDatabase() {
                     // user testing the app locally; if you ship this and need to
                     // preserve user data across upgrades, replace with real Migration
                     // objects instead.
-                    .fallbackToDestructiveMigration()
+                    .fallbackToDestructiveMigration(dropAllTables = true)
                     .build().also { INSTANCE = it }
             }
         }

@@ -14,6 +14,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -56,7 +57,7 @@ fun CalendarScreen(
                     Icon(Icons.Filled.ChevronLeft, contentDescription = "Previous month")
                 }
                 Text(
-                    "${currentMonth.month.getDisplayName(java.time.format.TextStyle.FULL, java.util.Locale.getDefault())} ${currentMonth.year}",
+                    "${currentMonth.month.getDisplayName(java.time.format.TextStyle.FULL, LocalLocale.current.platformLocale)} ${currentMonth.year}",
                     style = MaterialTheme.typography.titleMedium
                 )
                 IconButton(onClick = { currentMonth = currentMonth.plusMonths(1) }) {
@@ -97,7 +98,7 @@ fun CalendarScreen(
                 }
             }
 
-            Divider(modifier = Modifier.padding(vertical = 8.dp))
+            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
             // Agenda: either the selected day's events, or the overall upcoming/overdue list
             val agendaTitle: String
