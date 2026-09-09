@@ -9,6 +9,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.snaketracker.app.data.entities.Snake
@@ -25,7 +26,7 @@ fun SnakeListScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(title = { Text("My Snakes") })
+            TopAppBar(title = { Text("My Snakes", modifier = Modifier.testTag("snake_list_title")) })
         },
         floatingActionButton = {
             FloatingActionButton(onClick = onAddSnakeClick) {
