@@ -9,6 +9,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -53,6 +54,7 @@ fun SnakeTrackerNavGraph(viewModel: SnakeViewModel) {
                     NavigationBarItem(
                         selected = currentRoute == Routes.LIST,
                         onClick = { navController.navigateTopLevel(Routes.LIST) },
+                        modifier = Modifier.testTag("nav_snakes"),
                         icon = { Icon(Icons.Filled.Pets, contentDescription = "Snakes") },
                         label = { Text("Snakes") }
                     )

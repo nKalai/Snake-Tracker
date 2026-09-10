@@ -5,7 +5,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
@@ -41,7 +41,7 @@ fun SnakeDetailScreen(
             TopAppBar(
                 title = { Text(snake?.name ?: "") },
                 navigationIcon = {
-                    IconButton(onClick = onBack) { Icon(Icons.Filled.ArrowBack, contentDescription = "Back") }
+                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
                 },
                 actions = {
                     IconButton(onClick = onEdit) { Icon(Icons.Filled.Edit, contentDescription = "Edit") }
@@ -79,7 +79,7 @@ fun SnakeDetailScreen(
                 }
             }
 
-            TabRow(selectedTabIndex = tab.ordinal) {
+            PrimaryTabRow(selectedTabIndex = tab.ordinal) {
                 Tab(selected = tab == DetailTab.FEEDING, onClick = { tab = DetailTab.FEEDING }, text = { Text("Feeding") })
                 Tab(selected = tab == DetailTab.SHED, onClick = { tab = DetailTab.SHED }, text = { Text("Shed") })
                 Tab(selected = tab == DetailTab.WEIGHT, onClick = { tab = DetailTab.WEIGHT }, text = { Text("Weight") })
