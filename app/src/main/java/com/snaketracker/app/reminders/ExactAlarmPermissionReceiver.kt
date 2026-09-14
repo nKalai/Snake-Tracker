@@ -13,7 +13,7 @@ import android.content.Intent
 class ExactAlarmPermissionReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action == AlarmManager.ACTION_SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED) {
-            rearmInBackground(context)
+            launchGoAsync(context) { ReminderArming.refresh(it) }
         }
     }
 }

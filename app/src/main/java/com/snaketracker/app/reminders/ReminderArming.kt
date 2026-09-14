@@ -4,9 +4,6 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import com.snaketracker.app.data.AppDatabase
 import com.snaketracker.app.data.Repository
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.ZoneId
 
@@ -27,18 +24,5 @@ object ReminderArming {
             zone = ZoneId.systemDefault()
         )
         ReminderScheduler.reschedule(appContext, plan.nextAlarmAt)
-    }
-}
-
-// goAsync() must run synchronously on the main thread inside onReceive; the
-// refresh then continues off-thread until the receiver's result is finished.
-internal fun BroadcastReceiver.rearmInBackground(context: Context) {
-    val pendingResult = goAsync()
-    CoroutineScope(Dispatchers.Default).launch {
-        try {
-            ReminderArming.refresh(context.applicationContext)
-        } finally {
-            pendingResult.finish()
-        }
     }
 }
