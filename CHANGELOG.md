@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 - Feeding reminders: when a snake comes due, the app now sends a notification at 9:00 that morning, and repeats it every morning until the feeding is logged.
+- On Android 12 and newer phones where exact alarms are turned off, the app now asks once whether to allow exact alarms, so feeding reminders can arrive at the exact scheduled minute. Choosing "Not now" remembers your answer and the app won't ask again.
 
 ### Changed
 - Reminders now arrive right on time on phones that allow exact alarms. Where the phone doesn't allow it, a reminder may arrive up to about a quarter of an hour later — but always on the correct day.

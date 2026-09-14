@@ -1,3 +1,15 @@
 <resources>
     <string name="app_name">Snake Tracker</string>
+
+    <!-- One-time exact-alarm prompt (Android 12+ without the grant). -->
+    <string name="exact_alarm_prompt_title">Exact feeding reminders</string>
+    <string name="exact_alarm_prompt_message">Allow "Alarms &amp; reminders" so feeding reminders arrive minute-exact. Without it, reminders still land on the right day, but with a ~15-minute tolerance.</string>
+    <string name="exact_alarm_prompt_enable">Enable</string>
+    <string name="exact_alarm_prompt_not_now">Not now</string>
+
+    <!-- Feeding-due notifications (channel + per-snake notification copy). -->
+    <string name="notification_channel_name">Feeding reminders</string>
+    <string name="notification_channel_description">Reminders for when a snake is due to be fed</string>
+    <string name="notification_feeding_due_title">Feeding due: %1$s</string>
+    <string name="notification_feeding_due_text">%1$s is due for a feeding today.</string>
 </resources>
