@@ -136,6 +136,26 @@ class ReminderPlannerTest {
     }
 
     @Test
+    fun dueInstant_landsAt0900Local_whenIntervalCrossesADstTransition() {
+        // Fed 2026-03-07T12:00:00Z = 2026-03-07 07:00 EST (UTC-5) in New York,
+        // so the local feeding date is Mar 7. DST starts Mar 8; interval 7 lands
+        // on Mar 14 in EDT (UTC-4), where 09:00 local is 13:00Z. A naive fixed
+        // 24h/day arithmetic would aim at 12:00Z (08:00 EDT) and fail this test.
+        val nyZone = ZoneId.of("America/New_York")
+        val fedAt = Instant.parse("2026-03-07T12:00:00Z")
+        val plan = ReminderPlanner.plan(
+            candidates = listOf(
+                ReminderCandidate(snakeId = 8, name = "Kaa", feedingIntervalDays = 7, lastFeedingAt = fedAt)
+            ),
+            now = Instant.parse("2026-03-10T12:00:00Z"),
+            zone = nyZone
+        )
+
+        assertEquals(emptySet<Long>(), plan.dueSnakeIds)
+        assertEquals(Instant.parse("2026-03-14T13:00:00Z"), plan.nextAlarmAt)
+    }
+
+    @Test
     fun utcMidnightFeedingTimestamp_usesLocalCalendarDateInNonUtcZone() {
         // Stored feeding instant is UTC midnight 2026-01-10, which is already
         // 2026-01-09 19:00 in the fixed -05:00 zone — so the local feeding date
