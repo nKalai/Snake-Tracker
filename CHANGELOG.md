@@ -5,7 +5,11 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
-- Behind-the-scenes groundwork for feeding reminders: the app can now work out when each snake is next due for feeding — due at 9:00 in the morning on its scheduled day, rolled over to the next morning if a feeding was missed. No reminders go out yet and nothing has changed on screen; this prepares for the reminder feature coming next.
+- Feeding reminders: when a snake comes due, the app now sends a notification at 9:00 that morning, and repeats it every morning until the feeding is logged.
+
+### Changed
+- Reminders now arrive right on time on phones that allow exact alarms. Where the phone doesn't allow it, a reminder may arrive up to about a quarter of an hour later — but always on the correct day.
+- Reminders reschedule instantly whenever feeding information changes or the phone restarts, so the next reminder always matches the latest schedule.
 
 ## [1.0] - versionCode 2
 
