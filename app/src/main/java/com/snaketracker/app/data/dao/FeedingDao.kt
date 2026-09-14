@@ -14,8 +14,12 @@ interface FeedingDao {
     @Query("SELECT * FROM feeding_events WHERE snakeId = :snakeId ORDER BY date DESC LIMIT 1")
     suspend fun getLastForSnake(snakeId: Long): FeedingEvent?
 
-    @Query("SELECT snakeId, MAX(date) as lastDate FROM feeding_events GROUP BY snakeId")
+    @Query(LAST_FEEDING_PER_SNAKE_SQL)
     fun getLastFeedingPerSnake(): Flow<List<LastFeedingInfo>>
+
+    // One-shot variant of the query above for suspend callers that do not collect Flows.
+    @Query(LAST_FEEDING_PER_SNAKE_SQL)
+    suspend fun getLastFeedingPerSnakeOnce(): List<LastFeedingInfo>
 
     @Insert
     suspend fun insert(event: FeedingEvent): Long
@@ -25,4 +29,9 @@ interface FeedingDao {
 
     @Delete
     suspend fun delete(event: FeedingEvent)
+
+    companion object {
+        const val LAST_FEEDING_PER_SNAKE_SQL =
+            "SELECT snakeId, MAX(date) as lastDate FROM feeding_events GROUP BY snakeId"
+    }
 }
