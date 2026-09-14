@@ -17,6 +17,30 @@ internal fun shouldUseExactApi(sdkInt: Int, exactPermissionHeld: Boolean): Boole
     sdkInt < Build.VERSION_CODES.S || exactPermissionHeld
 
 /**
+ * The arm call behind the ladder (JVM-testable seam): when the ladder allows
+ * the exact API it is tried first, degrading to [setInexact] if the exact set
+ * throws SecurityException (permission revoked between the check and the set);
+ * otherwise only [setInexact] runs.
+ */
+internal fun armViaPermissionLadder(
+    sdkInt: Int,
+    exactPermissionHeld: Boolean,
+    setExact: () -> Unit,
+    setInexact: () -> Unit
+) {
+    if (shouldUseExactApi(sdkInt, exactPermissionHeld)) {
+        try {
+            setExact()
+            return
+        } catch (_: SecurityException) {
+            // Permission revoked between the check above and this call —
+            // degrade to the inexact fallback instead of crashing.
+        }
+    }
+    setInexact()
+}
+
+/**
  * Arms exactly one alarm for the next feeding-due instant. Exact while idle
  * when the permission ladder allows it (degrading to the inexact fallback if
  * the permission is revoked between check and set), inexact while idle
@@ -39,19 +63,19 @@ object ReminderScheduler {
         val operation = pendingIntent(context)
         val triggerAtMillis = at.toEpochMilli()
 
-        if (shouldUseExactApi(Build.VERSION.SDK_INT, exactPermissionHeld(context))) {
-            try {
+        armViaPermissionLadder(
+            sdkInt = Build.VERSION.SDK_INT,
+            exactPermissionHeld = exactPermissionHeld(context),
+            setExact = {
                 alarmManager.setExactAndAllowWhileIdle(
                     AlarmManager.RTC_WAKEUP, triggerAtMillis, operation
                 )
-                return
-            } catch (_: SecurityException) {
-                // Permission revoked between the check above and this call —
-                // degrade to the inexact fallback instead of crashing.
+            },
+            setInexact = {
+                alarmManager.setAndAllowWhileIdle(
+                    AlarmManager.RTC_WAKEUP, triggerAtMillis, operation
+                )
             }
-        }
-        alarmManager.setAndAllowWhileIdle(
-            AlarmManager.RTC_WAKEUP, triggerAtMillis, operation
         )
     }
 
