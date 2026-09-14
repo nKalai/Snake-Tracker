@@ -1,7 +1,6 @@
 package com.snaketracker.app
 
 import android.Manifest
-import android.app.AlarmManager
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -18,6 +17,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.snaketracker.app.navigation.SnakeTrackerNavGraph
 import com.snaketracker.app.reminders.ExactAlarmPromptPreferences
+import com.snaketracker.app.reminders.exactPermissionHeld
 import com.snaketracker.app.reminders.shouldShowExactAlarmPrompt
 import com.snaketracker.app.ui.screens.ExactAlarmPromptDialog
 import com.snaketracker.app.ui.theme.SnakeTrackerTheme
@@ -48,7 +48,7 @@ class MainActivity : ComponentActivity() {
 
         showExactAlarmPrompt = shouldShowExactAlarmPrompt(
             sdkInt = Build.VERSION.SDK_INT,
-            canScheduleExactAlarms = canScheduleExactAlarms(),
+            canScheduleExactAlarms = exactPermissionHeld(this),
             dismissedByUser = ExactAlarmPromptPreferences.isDismissed(this)
         )
 
@@ -79,10 +79,6 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
-
-    private fun canScheduleExactAlarms(): Boolean =
-        Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
-            getSystemService(AlarmManager::class.java).canScheduleExactAlarms()
 
     private fun exactAlarmSettingsIntent(): Intent =
         Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM)

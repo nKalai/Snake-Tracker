@@ -17,6 +17,16 @@ internal fun shouldUseExactApi(sdkInt: Int, exactPermissionHeld: Boolean): Boole
     sdkInt < Build.VERSION_CODES.S || exactPermissionHeld
 
 /**
+ * Whether the exact-alarm permission is actually held on this platform
+ * (platform seam: false below Android 12, where the exact API needs no
+ * permission; the [AlarmManager.canScheduleExactAlarms] probe above it) —
+ * the one source of truth behind the arm ladder and the launch prompt gate.
+ */
+internal fun exactPermissionHeld(context: Context): Boolean =
+    Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+        context.getSystemService(AlarmManager::class.java).canScheduleExactAlarms()
+
+/**
  * The arm call behind the ladder (JVM-testable seam): when the ladder allows
  * the exact API it is tried first, degrading to [setInexact] if the exact set
  * throws SecurityException (permission revoked between the check and the set);
@@ -83,10 +93,6 @@ object ReminderScheduler {
         val alarmManager = context.getSystemService(AlarmManager::class.java)
         alarmManager.cancel(pendingIntent(context))
     }
-
-    private fun exactPermissionHeld(context: Context): Boolean =
-        Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
-            context.getSystemService(AlarmManager::class.java).canScheduleExactAlarms()
 
     private fun pendingIntent(context: Context): PendingIntent {
         val intent = Intent(context, AlarmReceiver::class.java)
