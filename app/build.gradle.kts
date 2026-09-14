@@ -64,6 +64,7 @@ dependencies {
 
     // JVM unit tests
     testImplementation(libs.junit)
+    testImplementation(libs.kotlinx.coroutines.test)
 
     // Instrumented / Compose UI tests
     androidTestImplementation(libs.androidx.test.ext.junit)
