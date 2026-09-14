@@ -116,4 +116,20 @@ class ReminderObserverTest {
 
         assertEquals(listOf(null, Instant.parse("2026-09-15T07:00:00Z")), emissions)
     }
+
+    @Test
+    fun emitsNull_whenRemindersAreToggledOff_soTheArmedAlarmIsCancelled() = runBlocking {
+        val feedings = listOf(LastFeedingInfo(snakeId = 1, lastDate = epochMillisOf("2026-09-12T20:00")))
+
+        val emissions = nextAlarmAtFlow(
+            snakes = flow { emit(listOf(snake)); emit(listOf(snake.copy(remindersEnabled = false))) },
+            lastFeedings = flow { emit(feedings) },
+            now = { now },
+            zone = zone
+        ).toList()
+
+        // Armed -> cancelled: the second emission must be null so the receiver
+        // side cancels the previously armed alarm instead of leaving it stale.
+        assertEquals(listOf(Instant.parse("2026-09-15T07:00:00Z"), null), emissions)
+    }
 }
