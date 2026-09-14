@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Added
+- Behind-the-scenes groundwork for feeding reminders: the app can now work out when each snake is next due for feeding — due at 9:00 in the morning on its scheduled day, rolled over to the next morning if a feeding was missed. No reminders go out yet and nothing has changed on screen; this prepares for the reminder feature coming next.
+
 ## [1.0] - versionCode 2
 
 ### Changed
