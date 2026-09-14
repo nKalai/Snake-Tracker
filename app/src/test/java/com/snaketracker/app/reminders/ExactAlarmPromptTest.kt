@@ -40,6 +40,21 @@ class ExactAlarmPromptTest {
     }
 
     @Test
+    fun exactlyAndroid12_showsThePrompt() {
+        // Pins the gate's inclusive threshold: SCHEDULE_EXACT_ALARM exists from
+        // API 31 (Build.VERSION_CODES.S) on, so 31 itself must prompt when the
+        // permission is missing — a `>` instead of `>=` would pass every other
+        // test in this suite.
+        assertTrue(
+            shouldShowExactAlarmPrompt(
+                sdkInt = 31,
+                canScheduleExactAlarms = false,
+                dismissedByUser = false
+            )
+        )
+    }
+
+    @Test
     fun android12Plus_withExactAlarmsAlreadyAllowed_neverShowsThePrompt() {
         // Granting via the system screen is enough on its own; a later launch
         // must not ask again.
