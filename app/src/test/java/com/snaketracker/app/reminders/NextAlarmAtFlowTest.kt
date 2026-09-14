@@ -12,7 +12,7 @@ import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.ZonedDateTime
 
-class ReminderObserverTest {
+class NextAlarmAtFlowTest {
 
     // Fixed +02:00 zone so every expectation is a hand-computed literal.
     private val zone: ZoneId = ZoneId.of("GMT+02:00")
