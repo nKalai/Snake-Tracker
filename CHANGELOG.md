@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## [1.0] - versionCode 2
 
 ### Changed
 - The app's underlying build configuration was reorganized, with no change to the app's features or behavior.
