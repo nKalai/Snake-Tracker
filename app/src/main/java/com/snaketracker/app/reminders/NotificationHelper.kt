@@ -9,6 +9,7 @@ import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
+import com.snaketracker.app.R
 
 object NotificationHelper {
     const val CHANNEL_ID = "feeding_reminders"
@@ -17,10 +18,10 @@ object NotificationHelper {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 CHANNEL_ID,
-                "Feeding reminders",
+                context.getString(R.string.notification_channel_name),
                 NotificationManager.IMPORTANCE_DEFAULT
             ).apply {
-                description = "Reminders for when a snake is due to be fed"
+                description = context.getString(R.string.notification_channel_description)
             }
             val manager = context.getSystemService(NotificationManager::class.java)
             manager.createNotificationChannel(channel)
@@ -39,8 +40,8 @@ object NotificationHelper {
 
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_dialog_info)
-            .setContentTitle("Feeding due: $snakeName")
-            .setContentText("$snakeName is due for a feeding today.")
+            .setContentTitle(context.getString(R.string.notification_feeding_due_title, snakeName))
+            .setContentText(context.getString(R.string.notification_feeding_due_text, snakeName))
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setAutoCancel(true)
             .build()
