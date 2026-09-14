@@ -26,15 +26,19 @@ import org.junit.runner.RunWith
 private val grantExactAlarmPermission: TestRule = TestRule { base, _: Description ->
     object : Statement() {
         override fun evaluate() {
-            val uiAutomation = InstrumentationRegistry.getInstrumentation().uiAutomation
+            val instrumentation = InstrumentationRegistry.getInstrumentation()
+            val uiAutomation = instrumentation.uiAutomation
+            // The app id from the instrumented target, so the shell commands
+            // track the applicationId instead of hardcoding it.
+            val appPackage = instrumentation.targetContext.packageName
             uiAutomation.executeShellCommand(
-                "appops set com.snaketracker.app SCHEDULE_EXACT_ALARM allow"
+                "appops set $appPackage SCHEDULE_EXACT_ALARM allow"
             ).close()
             try {
                 base.evaluate()
             } finally {
                 uiAutomation.executeShellCommand(
-                    "appops set com.snaketracker.app SCHEDULE_EXACT_ALARM default"
+                    "appops set $appPackage SCHEDULE_EXACT_ALARM default"
                 ).close()
             }
         }
