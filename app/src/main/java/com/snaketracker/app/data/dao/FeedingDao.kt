@@ -17,6 +17,10 @@ interface FeedingDao {
     @Query("SELECT snakeId, MAX(date) as lastDate FROM feeding_events GROUP BY snakeId")
     fun getLastFeedingPerSnake(): Flow<List<LastFeedingInfo>>
 
+    // One-shot variant of the query above for suspend callers that do not collect Flows.
+    @Query("SELECT snakeId, MAX(date) as lastDate FROM feeding_events GROUP BY snakeId")
+    suspend fun getLastFeedingPerSnakeOnce(): List<LastFeedingInfo>
+
     @Insert
     suspend fun insert(event: FeedingEvent): Long
 
