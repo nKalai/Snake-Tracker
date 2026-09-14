@@ -60,9 +60,6 @@ dependencies {
     implementation(libs.androidx.room.ktx)
     ksp(libs.androidx.room.compiler)
 
-    // WorkManager for local reminder scheduling
-    implementation(libs.androidx.work.runtime.ktx)
-
     debugImplementation(libs.androidx.compose.ui.tooling)
 
     // JVM unit tests
