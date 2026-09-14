@@ -136,6 +136,27 @@ class ReminderPlannerTest {
     }
 
     @Test
+    fun dueSnake_afterInexactDrift_isStillDue_andNextAlarmRollsToTomorrow() {
+        // Fed 2026-09-07 12:00 local; interval 7 → due 2026-09-14 09:00 local
+        // (= 07:00Z). An inexact fallback alarm fires ~15 minutes late, so
+        // now is dueAt + 15min: the snake is still due now and the next alarm
+        // rolls to tomorrow's 09:00 local — the "~15-minute tolerance, always
+        // the correct day" contract at its boundary.
+        val fedAt = Instant.parse("2026-09-07T10:00:00Z")
+        val driftedNow = Instant.parse("2026-09-14T07:15:00Z")
+        val plan = ReminderPlanner.plan(
+            candidates = listOf(
+                ReminderCandidate(snakeId = 9, name = "Drift", feedingIntervalDays = 7, lastFeedingAt = fedAt)
+            ),
+            now = driftedNow,
+            zone = zone
+        )
+
+        assertEquals(setOf(9L), plan.dueSnakeIds)
+        assertEquals(Instant.parse("2026-09-15T07:00:00Z"), plan.nextAlarmAt)
+    }
+
+    @Test
     fun dueInstant_landsAt0900Local_whenIntervalCrossesADstTransition() {
         // Fed 2026-03-07T12:00:00Z = 2026-03-07 07:00 EST (UTC-5) in New York,
         // so the local feeding date is Mar 7. DST starts Mar 8; interval 7 lands
