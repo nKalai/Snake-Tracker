@@ -3,7 +3,9 @@ package com.snaketracker.app.data
 import androidx.room.withTransaction
 import com.snaketracker.app.data.dao.LastFeedingInfo
 import com.snaketracker.app.data.entities.*
+import com.snaketracker.app.reminders.ReminderCandidate
 import kotlinx.coroutines.flow.Flow
+import java.time.Instant
 
 class Repository(private val db: AppDatabase) {
 
@@ -40,6 +42,15 @@ class Repository(private val db: AppDatabase) {
         return newId
     }
 
+    // One-shot snapshot pairing reminder-enabled snakes with each one's last
+    // feeding instant — the ReminderPlanner's data feed, usable without Flow
+    // collection.
+    suspend fun getReminderSnapshot(): List<ReminderCandidate> =
+        buildReminderCandidates(
+            db.snakeDao().getAllWithRemindersEnabled(),
+            db.feedingDao().getLastFeedingPerSnakeOnce()
+        )
+
     // Shed
     fun getShedEvents(snakeId: Long): Flow<List<ShedEvent>> = db.shedDao().getForSnake(snakeId)
     suspend fun addShed(event: ShedEvent): Long = db.shedDao().insert(event)
@@ -63,5 +74,22 @@ class Repository(private val db: AppDatabase) {
         @Volatile private var INSTANCE: Repository? = null
         fun getInstance(db: AppDatabase): Repository =
             INSTANCE ?: synchronized(this) { INSTANCE ?: Repository(db).also { INSTANCE = it } }
+    }
+}
+
+// Pure pairing of reminder-enabled snakes with their last feeding instants, so
+// the ReminderPlanner snapshot logic stays testable without a Room database.
+internal fun buildReminderCandidates(
+    snakes: List<Snake>,
+    lastFeedings: List<LastFeedingInfo>
+): List<ReminderCandidate> {
+    val lastBySnakeId = lastFeedings.associate { it.snakeId to it.lastDate }
+    return snakes.map { snake ->
+        ReminderCandidate(
+            snakeId = snake.id,
+            name = snake.name,
+            feedingIntervalDays = snake.feedingIntervalDays,
+            lastFeedingAt = lastBySnakeId[snake.id]?.let { Instant.ofEpochMilli(it) }
+        )
     }
 }

@@ -14,9 +14,14 @@ SQLite database (via Room) inside the app's own data folder.
 - **Shed log**: date, complete/incomplete, notes (stuck caps, retained eye caps, etc).
 - **Weight log**: date + grams, with notes, per snake.
 - **Food stock**: track inventory of frozen feeders with quantity and low-stock warning.
-- **Reminders**: a daily local background check (WorkManager) looks at each snake's last
-  feeding date + its feeding interval, and posts a local notification if a feeding is due.
-  Reminders survive device reboot (`BootReceiver` reschedules the check).
+- **Reminders**: the app arms a single exact Android alarm for the next feeding
+  due instant (last feeding date + the snake's feeding interval, normalized to
+  09:00 local time) and posts a local notification when it fires. On Android 12+
+  it uses the exact-alarm API when the `SCHEDULE_EXACT_ALARM` permission is
+  granted, and falls back to the inexact alarm API (~15-minute tolerance, still
+  the correct day) when it is not. Reminders survive device reboot
+  (`BootReceiver` re-arms the alarm). See
+  `docs/adr/0001-exact-alarms-over-workmanager.md` for why.
 
 ## How to open and run it
 
@@ -36,7 +41,7 @@ Minimum supported Android version: Android 8.0 (API 26).
 ```
 app/src/main/java/com/snaketracker/app/
 ├── data/                  Room entities, DAOs, database, repository (local storage only)
-├── reminders/             WorkManager worker + scheduler + notification helper + boot receiver
+├── reminders/             due-time engine + exact-alarm scheduler + receivers + notification helper
 ├── navigation/            Jetpack Navigation Compose graph
 └── ui/
     ├── screens/           Compose screens: snake list, snake detail, add/edit, dialogs, food stock
@@ -48,7 +53,9 @@ app/src/main/java/com/snaketracker/app/
 
 - **Change the default feeding interval**: edit `feedingIntervalDays` default in
   `data/entities/Snake.kt`, or just set it per-snake in the Add/Edit Snake screen.
-- **Change reminder check frequency**: `reminders/ReminderScheduler.kt` (currently once a day).
+- **Change when feeding reminders fire**: the due-time engine
+  `reminders/ReminderPlanner.kt` (currently 09:00 local on the interval's due
+  date).
 - **Add photos per snake**: not included yet, but the `Snake` entity can be extended with an
   image file path (stored locally, e.g. in the app's internal files directory) and displayed
   with Coil or `BitmapFactory`.
