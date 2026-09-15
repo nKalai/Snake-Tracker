@@ -44,7 +44,7 @@ internal fun formatExportedAt(instant: Instant): String = ExportedAtFormatter.fo
  * epoch millis. Only [exportedAt] is an ISO-8601 string.
  */
 @Serializable
-data class BackupDocument(
+internal data class BackupDocument(
     // No default: a file without the key must fail loudly at the import
     // gate (#26), never silently validate as the current version.
     val schemaVersion: Int,
@@ -63,7 +63,7 @@ data class BackupDocument(
 // would also let a sixth table compile through the named-arg mappings and
 // silently restore nothing.
 @Serializable
-data class BackupData(
+internal data class BackupData(
     val snakes: List<SnakeRow>,
     val feedings: List<FeedingRow>,
     val sheds: List<ShedRow>,
@@ -77,7 +77,7 @@ data class BackupData(
 // entity defaults silently rewriting restored data.
 
 @Serializable
-data class SnakeRow(
+internal data class SnakeRow(
     val id: Long,
     val name: String,
     val species: String,
@@ -92,7 +92,7 @@ data class SnakeRow(
 )
 
 @Serializable
-data class FeedingRow(
+internal data class FeedingRow(
     val id: Long,
     val snakeId: Long,
     val date: Long,
@@ -105,7 +105,7 @@ data class FeedingRow(
 )
 
 @Serializable
-data class ShedRow(
+internal data class ShedRow(
     val id: Long,
     val snakeId: Long,
     val date: Long,
@@ -114,7 +114,7 @@ data class ShedRow(
 )
 
 @Serializable
-data class WeightRow(
+internal data class WeightRow(
     val id: Long,
     val snakeId: Long,
     val date: Long,
@@ -123,7 +123,7 @@ data class WeightRow(
 )
 
 @Serializable
-data class FoodStockRow(
+internal data class FoodStockRow(
     val id: Long,
     val name: String,
     val foodType: String,
@@ -136,7 +136,7 @@ data class FoodStockRow(
 // Entity <-> row mapping. Kept beside the wire format so the mapping is
 // versioned together with the schema it produces.
 
-fun Snake.toRow() = SnakeRow(
+internal fun Snake.toRow() = SnakeRow(
     id = id,
     name = name,
     species = species,
@@ -150,7 +150,7 @@ fun Snake.toRow() = SnakeRow(
     remindersEnabled = remindersEnabled
 )
 
-fun SnakeRow.toEntity() = Snake(
+internal fun SnakeRow.toEntity() = Snake(
     id = id,
     name = name,
     species = species,
@@ -164,7 +164,7 @@ fun SnakeRow.toEntity() = Snake(
     remindersEnabled = remindersEnabled
 )
 
-fun FeedingEvent.toRow() = FeedingRow(
+internal fun FeedingEvent.toRow() = FeedingRow(
     id = id,
     snakeId = snakeId,
     date = date,
@@ -176,7 +176,7 @@ fun FeedingEvent.toRow() = FeedingRow(
     foodStockItemId = foodStockItemId
 )
 
-fun FeedingRow.toEntity() = FeedingEvent(
+internal fun FeedingRow.toEntity() = FeedingEvent(
     id = id,
     snakeId = snakeId,
     date = date,
@@ -188,7 +188,7 @@ fun FeedingRow.toEntity() = FeedingEvent(
     foodStockItemId = foodStockItemId
 )
 
-fun ShedEvent.toRow() = ShedRow(
+internal fun ShedEvent.toRow() = ShedRow(
     id = id,
     snakeId = snakeId,
     date = date,
@@ -196,7 +196,7 @@ fun ShedEvent.toRow() = ShedRow(
     notes = notes
 )
 
-fun ShedRow.toEntity() = ShedEvent(
+internal fun ShedRow.toEntity() = ShedEvent(
     id = id,
     snakeId = snakeId,
     date = date,
@@ -204,7 +204,7 @@ fun ShedRow.toEntity() = ShedEvent(
     notes = notes
 )
 
-fun WeightEntry.toRow() = WeightRow(
+internal fun WeightEntry.toRow() = WeightRow(
     id = id,
     snakeId = snakeId,
     date = date,
@@ -212,7 +212,7 @@ fun WeightEntry.toRow() = WeightRow(
     notes = notes
 )
 
-fun WeightRow.toEntity() = WeightEntry(
+internal fun WeightRow.toEntity() = WeightEntry(
     id = id,
     snakeId = snakeId,
     date = date,
@@ -220,7 +220,7 @@ fun WeightRow.toEntity() = WeightEntry(
     notes = notes
 )
 
-fun FoodStockItem.toRow() = FoodStockRow(
+internal fun FoodStockItem.toRow() = FoodStockRow(
     id = id,
     name = name,
     foodType = foodType,
@@ -230,7 +230,7 @@ fun FoodStockItem.toRow() = FoodStockRow(
     notes = notes
 )
 
-fun FoodStockRow.toEntity() = FoodStockItem(
+internal fun FoodStockRow.toEntity() = FoodStockItem(
     id = id,
     name = name,
     foodType = foodType,
