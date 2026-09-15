@@ -26,6 +26,7 @@ import java.io.IOException
 import java.util.concurrent.atomic.AtomicInteger
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -225,6 +226,60 @@ class SettingsBackupImportTest {
             .onNodeWithText(composeRule.activity.getString(R.string.backup_import_failure_unreadable))
             .assertIsDisplayed()
         assertEquals(0, harness.rearmCalls.get())
+    }
+
+    /** WB4: a validated file that fails mid-insert names the database as the reason. */
+    @Test
+    fun databaseFailure_resultDialogNamesDatabase_andRearmsNothing() {
+        val throwingSink = object : BackupJsonSink {
+            override suspend fun importJson(json: String): ImportSummary =
+                throw IllegalStateException("SQLITE_BUSY")
+        }
+        val harness = Harness(gatewayReturning(backupJson), throwingSink)
+        viewModel = harness.viewModel
+        val picker = TestPicker { viewModel.requestBackupImport(pickedUri()) }
+        showSettings(picker)
+
+        composeRule.onNodeWithTag("import_backup_row").performClick()
+        composeRule.onNodeWithTag("backup_import_confirm_yes").performClick()
+
+        composeRule
+            .onNodeWithText(composeRule.activity.getString(R.string.backup_import_failure_database))
+            .assertIsDisplayed()
+        assertEquals(0, harness.rearmCalls.get())
+    }
+
+    /**
+     * WB4 "distinct reason per failure kind", proven where strings resolve:
+     * the six failure messages plus the confirm/result copy are each
+     * non-empty on the device and pairwise distinct — the check the JVM
+     * resource-id test honestly cannot make.
+     */
+    @Test
+    fun failureMessages_resolveToPairwiseDistinctNonEmptyCopy() {
+        val ids = listOf(
+            R.string.backup_import_failure_not_backup,
+            R.string.backup_import_failure_newer_version,
+            R.string.backup_import_failure_orphan_rows,
+            R.string.backup_import_failure_invalid_rows,
+            R.string.backup_import_failure_unreadable,
+            R.string.backup_import_failure_database,
+            // The surrounding dialog copy the failure messages share a screen with.
+            R.string.backup_import_confirm_title,
+            R.string.backup_import_confirm_message,
+            R.string.backup_import_failure_title,
+            R.string.backup_import_success_title
+        )
+        val copy = ids.map { composeRule.activity.getString(it) }
+
+        for ((id, text) in ids.zip(copy)) {
+            assertTrue("string $id resolved to blank copy", text.isNotBlank())
+        }
+        assertEquals(
+            "every import dialog string must read differently",
+            ids.size,
+            copy.distinct().size
+        )
     }
 
     private fun resultDialogForRejection(reason: ImportFailure, messageRes: Int) {
