@@ -15,6 +15,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalLocale
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -44,7 +45,9 @@ fun CalendarScreen(
         events.groupBy { Instant.ofEpochMilli(it.dueDateMillis).atZone(zone).toLocalDate() }
     }
 
-    Scaffold(topBar = { TopAppBar(title = { Text("Snake Tracker") }) }) { padding ->
+    Scaffold(topBar = {
+        TopAppBar(title = { Text("Snake Tracker", modifier = Modifier.testTag("calendar_title")) })
+    }) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
 
             // Month navigation

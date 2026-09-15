@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+- A new Settings tab with a gear icon now appears in the bottom navigation bar, alongside Calendar, Snakes and Food Stock. The Settings screen is a placeholder for now — it paves the way for upcoming features like importing and exporting your data, but has no actions yet.
+
 ### Changed
 - The app now targets Android 17 (API level 37), the newest stable Android release, so it runs under the current system rules on new phones. There is no visible change to how the app looks or works.
 - The app's build tools and libraries (Kotlin symbol processing, Jetpack Compose, Navigation, Room, coroutines test) were updated to their latest stable versions. There is no visible change to how the app looks or works.
