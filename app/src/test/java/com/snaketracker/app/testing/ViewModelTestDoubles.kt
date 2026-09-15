@@ -1,4 +1,4 @@
-package com.snaketracker.app.ui.viewmodel
+package com.snaketracker.app.testing
 
 import android.net.Uri
 import androidx.room.DatabaseConfiguration
@@ -17,16 +17,24 @@ import com.snaketracker.app.data.entities.FoodStockItem
 import com.snaketracker.app.data.entities.ShedEvent
 import com.snaketracker.app.data.entities.Snake
 import com.snaketracker.app.data.entities.WeightEntry
-import com.snaketracker.app.ui.model.BackupExportState
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 
-// JVM stand-ins so the export-behavior tests can construct SnakeViewModel
-// without a Room database or an Android runtime: the database-backed flows
-// are never collected in these tests, so empty flows / unused DAO methods
-// are all the ViewModel ever observes.
+/**
+ * Shared JVM stand-ins that let ViewModel unit tests construct
+ * [com.snaketracker.app.ui.viewmodel.SnakeViewModel] without a Room database
+ * or an Android runtime: the database-backed flows are never collected in
+ * these tests, so empty flows / unused DAO methods are all the ViewModel
+ * ever observes. Lives here (not next to one feature's tests) because every
+ * ViewModel-behavior test suite - the export slice today, the import slice
+ * (#28) tomorrow - needs the same fakes.
+ *
+ * The single app-wide `SnakeViewModel` is a deliberate convention (one
+ * ViewModel owns the whole Repository surface); these doubles support that
+ * convention rather than working around it.
+ */
 
-internal fun backupExportTestRepository(): Repository = Repository(FakeAppDatabase)
+internal fun viewModelTestRepository(): Repository = Repository(FakeAppDatabase)
 
 private object FakeAppDatabase : AppDatabase() {
     override fun snakeDao(): SnakeDao = FakeSnakeDao
@@ -92,6 +100,3 @@ private object FakeFoodStockDao : FoodStockDao {
     override suspend fun update(item: FoodStockItem) = unsupported()
     override suspend fun delete(item: FoodStockItem) = unsupported()
 }
-
-internal fun backupExportStateOf(viewModel: SnakeViewModel): BackupExportState? =
-    viewModel.backupExportState.value

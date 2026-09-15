@@ -4,6 +4,7 @@ import android.net.TestUri
 import android.net.Uri
 import com.snaketracker.app.data.backup.BackupExportGateway
 import com.snaketracker.app.data.backup.BackupJsonSource
+import com.snaketracker.app.testing.viewModelTestRepository
 import com.snaketracker.app.ui.model.BackupExportState
 import java.io.IOException
 import kotlinx.coroutines.Dispatchers
@@ -87,7 +88,7 @@ class SnakeViewModelBackupExportTest {
     fun `exportBackup source failure exposes the export reason`() = runOnViewModelMain {
         val reason = "Database snapshot read failed."
         val viewModel = SnakeViewModel(
-            repository = backupExportTestRepository(),
+            repository = viewModelTestRepository(),
             backupJsonSource = object : BackupJsonSource {
                 override suspend fun exportAll(): String = throw IllegalStateException(reason)
             },
@@ -113,7 +114,7 @@ class SnakeViewModelBackupExportTest {
     }
 
     private fun viewModelWith(gateway: BackupExportGateway) = SnakeViewModel(
-        repository = backupExportTestRepository(),
+        repository = viewModelTestRepository(),
         backupJsonSource = FakeJsonSource(backupJson),
         backupExportGateway = gateway
     )
@@ -138,3 +139,6 @@ class SnakeViewModelBackupExportTest {
         assertSame(TestUri, gateway.writtenTo)
     }
 }
+
+private fun backupExportStateOf(viewModel: SnakeViewModel): BackupExportState? =
+    viewModel.backupExportState.value
