@@ -54,13 +54,7 @@ internal fun rescheduleToNextAlarm(
 object ReminderArming {
     suspend fun refresh(context: Context) {
         val appContext = context.applicationContext
-        val repository = Repository.getInstance(AppDatabase.getInstance(appContext))
-        val candidates = repository.getReminderSnapshot()
-        val plan = ReminderPlanner.plan(
-            candidates = candidates,
-            now = Instant.now(),
-            zone = ZoneId.systemDefault()
-        )
+        val (candidates, plan) = snapshotAndPlan(appContext)
         notifyDueSnakesAndReschedule(
             candidates = candidates,
             plan = plan,
@@ -82,14 +76,29 @@ object ReminderArming {
      */
     suspend fun reschedule(context: Context) {
         val appContext = context.applicationContext
-        val repository = Repository.getInstance(AppDatabase.getInstance(appContext))
-        val plan = ReminderPlanner.plan(
-            candidates = repository.getReminderSnapshot(),
-            now = Instant.now(),
-            zone = ZoneId.systemDefault()
-        )
+        val (_, plan) = snapshotAndPlan(appContext)
         rescheduleToNextAlarm(plan) { at ->
             ReminderScheduler.reschedule(appContext, at)
         }
+    }
+
+    /**
+     * The one snapshot→plan setup both entries consume: the shared
+     * Repository's current data, planned against the device clock and zone.
+     * Stated once so a clock/zone/snapshot change is a single edit
+     * (PR #34 review 🟡); only the notify-vs-reschedule difference stays
+     * at the entries.
+     */
+    private suspend fun snapshotAndPlan(
+        appContext: Context
+    ): Pair<List<ReminderCandidate>, ReminderPlan> {
+        val candidates = Repository.getInstance(AppDatabase.getInstance(appContext))
+            .getReminderSnapshot()
+        val plan = ReminderPlanner.plan(
+            candidates = candidates,
+            now = Instant.now(),
+            zone = ZoneId.systemDefault()
+        )
+        return candidates to plan
     }
 }
