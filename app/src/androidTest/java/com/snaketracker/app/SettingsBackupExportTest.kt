@@ -14,21 +14,16 @@ import androidx.activity.ComponentActivity
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.snaketracker.app.data.AppDatabase
-import com.snaketracker.app.data.Repository
 import com.snaketracker.app.data.backup.BackupExportException
 import com.snaketracker.app.data.backup.BackupExportFailureReason
-import com.snaketracker.app.data.backup.BackupExportGateway
-import com.snaketracker.app.data.backup.BackupImportGateway
-import com.snaketracker.app.data.backup.BackupJsonSink
-import com.snaketracker.app.data.backup.BackupJsonSource
 import com.snaketracker.app.data.backup.ImportSummary
+import com.snaketracker.app.testing.SettingsBackupHarness
 import com.snaketracker.app.ui.screens.BackupDestinationPicker
 import com.snaketracker.app.ui.screens.SettingsScreen
 import com.snaketracker.app.ui.theme.SnakeTrackerTheme
 import com.snaketracker.app.ui.viewmodel.SnakeViewModel
 import android.content.Context
 import android.net.Uri
-import java.io.File
 import java.io.IOException
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -269,26 +264,16 @@ class SettingsBackupExportTest {
         composeRule.onNodeWithText(message).assertIsDisplayed()
     }
 
-    private fun viewModelExportingTo(saveWith: suspend (String) -> String) = SnakeViewModel(
-        repository = Repository(db),
-        backupJsonSource = object : BackupJsonSource {
-            override suspend fun exportAll(): String = """{"schemaVersion":1,"data":{}}"""
-        },
-        backupJsonSink = object : BackupJsonSink {
-            override suspend fun importJson(json: String): ImportSummary =
-                throw UnsupportedOperationException("export tests never import")
-        },
-        backupExportGateway = object : BackupExportGateway {
-            override suspend fun save(destination: Uri, json: String): String = saveWith(json)
-        },
-        backupImportGateway = object : BackupImportGateway {
-            override suspend fun read(source: Uri): String =
-                throw UnsupportedOperationException("export tests never read")
-        },
-        rearmReminders = { }
+    private fun viewModelExportingTo(saveWith: suspend (String) -> String) = SettingsBackupHarness.viewModel(
+        db = db,
+        backup = SettingsBackupHarness.engineReturning(
+            // The import half is never reached: the import gateway stays unused.
+            result = ImportSummary.Success(0, 0, 0, 0, 0),
+            json = """{"schemaVersion":1,"data":{}}"""
+        ),
+        exportGateway = SettingsBackupHarness.exportGatewaySavingWith(saveWith)
     )
 
     /** Stands in for a SAF result URI; the fake gateway never dereferences it. */
-    private fun pickedUri(fileName: String): Uri =
-        Uri.fromFile(File(ApplicationProvider.getApplicationContext<Context>().cacheDir, fileName))
+    private fun pickedUri(fileName: String): Uri = SettingsBackupHarness.pickedUri(fileName)
 }

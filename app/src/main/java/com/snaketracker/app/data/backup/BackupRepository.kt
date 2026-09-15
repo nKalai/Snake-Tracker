@@ -23,7 +23,7 @@ class BackupRepository(
     private val appVersion: String,
     private val clock: Clock = Clock.systemUTC(),
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO
-) : BackupJsonSink, BackupJsonSource {
+) : BackupEngine {
 
     /**
      * All five tables as one JSON backup document. The document build and
