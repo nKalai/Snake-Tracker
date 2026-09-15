@@ -14,30 +14,32 @@ import com.snaketracker.app.ui.model.BackupImportState
 import com.snaketracker.app.ui.model.UpcomingEvent
 import com.snaketracker.app.ui.model.backupImportMessageFor
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.util.concurrent.TimeUnit
 
 class SnakeViewModel(
     private val repository: Repository,
     private val backupJsonSink: BackupJsonSink,
     private val backupImportGateway: BackupImportGateway,
-    private val rearmReminders: suspend () -> Unit
+    private val rearmReminders: suspend () -> Unit,
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO
 ) : ViewModel() {
 
-    // Cold database-backed flows, held lazily so the ViewModel can be
-    // constructed in JVM tests (backup import state) without a Room database.
-    val snakes: Flow<List<Snake>> by lazy { repository.getAllSnakes() }
-    val foodStock: Flow<List<FoodStockItem>> by lazy { repository.getFoodStock() }
+    val snakes: Flow<List<Snake>> = repository.getAllSnakes()
+    val foodStock: Flow<List<FoodStockItem>> = repository.getFoodStock()
 
     // Projects each reminder-enabled snake's feeding schedule (last feeding + interval,
     // repeated) out about 4 months, purely from locally stored data - used to populate
     // the calendar and the "upcoming/overdue" agenda list.
-    val upcomingEvents: Flow<List<UpcomingEvent>> by lazy {
+    val upcomingEvents: Flow<List<UpcomingEvent>> =
         combine(repository.getAllSnakes(), repository.getLastFeedingPerSnake()) { snakes, lastDates ->
             val lastBySnake = lastDates.associateBy { it.snakeId }
             val now = System.currentTimeMillis()
@@ -61,7 +63,6 @@ class SnakeViewModel(
             }
             events.sortedBy { it.dueDateMillis }
         }
-    }
 
     private val _pendingImportUri = MutableStateFlow<Uri?>(null)
 
@@ -91,13 +92,16 @@ class SnakeViewModel(
 
     /**
      * Runs the confirmed import: the picked file's bytes are read through
-     * the gateway (its stream work on `Dispatchers.IO`) and passed to the
-     * backup sink, where the existing replace-everything validation and
-     * transaction semantics apply unchanged - any rejection leaves the
-     * device untouched. The outcome lands in [backupImportState], and a
-     * success immediately re-arms the feeding reminder through the shared
-     * reschedule entry point, so the alarm follows the new data without
-     * waiting for the next app launch (issue #28 WB5).
+     * the gateway and passed to the backup sink — both the gateway's stream
+     * work and the engine call (which fully parses the file before it
+     * touches Room) on [ioDispatcher], never on the Main the confirm click
+     * launched on (issue #28 WB3). The sink keeps the existing
+     * replace-everything validation and transaction semantics unchanged -
+     * any rejection leaves the device untouched. The outcome lands in
+     * [backupImportState], and a success immediately re-arms the feeding
+     * reminder through the shared reschedule entry point, so the alarm
+     * follows the new data without waiting for the next app launch
+     * (issue #28 WB5).
      */
     fun confirmBackupImport() {
         val source = _pendingImportUri.value ?: return
@@ -114,41 +118,64 @@ class SnakeViewModel(
         _backupImportState.value = null
     }
 
-    private suspend fun performImport(source: Uri): BackupImportState {
-        val json = try {
-            backupImportGateway.read(source)
-        } catch (e: CancellationException) {
-            throw e
-        } catch (_: Exception) {
-            return BackupImportState.Failure(R.string.backup_import_failure_unreadable)
-        }
-        return try {
-            when (val summary = backupJsonSink.importJson(json)) {
-                is ImportSummary.Success -> BackupImportState.Success(summary)
-                is ImportSummary.Failure ->
-                    BackupImportState.Failure(backupImportMessageFor(summary.reason))
+    private suspend fun performImport(source: Uri): BackupImportState =
+        recoveringFrom(
+            onFailure = { BackupImportState.Failure(R.string.backup_import_failure_unreadable) }
+        ) {
+            // Only a failed read can stop the engine from running, so the
+            // engine's own failure mapping stays nested inside this read gate.
+            val json = backupImportGateway.read(source)
+            recoveringFrom(
+                // A validated file that still fails mid-insert arrives as an
+                // exception, not a typed rejection (see BackupRepository.importJson);
+                // Room has already rolled the transaction back.
+                onFailure = { BackupImportState.Failure(R.string.backup_import_failure_database) }
+            ) {
+                // The engine parses the whole file before Room dispatches its
+                // transaction, so the call itself must leave Main (issue #28 WB3).
+                when (val summary = withContext(ioDispatcher) { backupJsonSink.importJson(json) }) {
+                    is ImportSummary.Success -> BackupImportState.Success(
+                        BackupImportState.Counts(
+                            snakes = summary.snakes,
+                            feedings = summary.feedings,
+                            sheds = summary.sheds,
+                            weights = summary.weights,
+                            foodStock = summary.foodStock
+                        )
+                    )
+                    is ImportSummary.Failure ->
+                        BackupImportState.Failure(backupImportMessageFor(summary.reason))
+                }
             }
-        } catch (e: CancellationException) {
-            throw e
-        } catch (_: Exception) {
-            // A validated file that still fails mid-insert arrives as an
-            // exception, not a typed rejection (see BackupRepository.importJson);
-            // Room has already rolled the transaction back.
-            BackupImportState.Failure(R.string.backup_import_failure_database)
+        }
+
+    private suspend fun rearmAfterImport() {
+        recoveringFrom(
+            // The import itself completed; the receivers (alarm fire, boot,
+            // permission re-grant) re-arm on their next event regardless.
+            onFailure = { e -> Log.e(LOG_TAG, "Reminder re-arm after import failed", e) }
+        ) {
+            rearmReminders()
         }
     }
 
-    private suspend fun rearmAfterImport() {
+    /**
+     * Runs [block], recovering from any failure through [onFailure] — the one
+     * cancellation-safe catch idiom behind every import dialog path: a
+     * [CancellationException] (scope death, navigation away) always
+     * propagates instead of being reported as an import outcome.
+     */
+    private inline fun <T> recoveringFrom(
+        onFailure: (Exception) -> T,
+        block: () -> T
+    ): T =
         try {
-            rearmReminders()
+            block()
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            // The import itself completed; the receivers (alarm fire, boot,
-            // permission re-grant) re-arm on their next event regardless.
-            Log.e(LOG_TAG, "Reminder re-arm after import failed", e)
+            onFailure(e)
         }
-    }
 
     fun snake(id: Long): Flow<Snake?> = repository.getSnake(id)
     fun feedingEvents(snakeId: Long): Flow<List<FeedingEvent>> = repository.getFeedingEvents(snakeId)
