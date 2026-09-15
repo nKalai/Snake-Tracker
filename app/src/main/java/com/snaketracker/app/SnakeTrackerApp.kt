@@ -4,6 +4,9 @@ import android.app.Application
 import android.util.Log
 import com.snaketracker.app.data.AppDatabase
 import com.snaketracker.app.data.Repository
+import com.snaketracker.app.data.backup.BackupExportContentGateway
+import com.snaketracker.app.data.backup.BackupExportGateway
+import com.snaketracker.app.data.backup.BackupRepository
 import com.snaketracker.app.reminders.NotificationHelper
 import com.snaketracker.app.reminders.ReminderScheduler
 import com.snaketracker.app.reminders.nextAlarmAtFlow
@@ -20,6 +23,12 @@ class SnakeTrackerApp : Application() {
 
     val database: AppDatabase by lazy { AppDatabase.getInstance(this) }
     val repository: Repository by lazy { Repository.getInstance(database) }
+    val backupRepository: BackupRepository by lazy {
+        BackupRepository(database, appVersion = BuildConfig.VERSION_NAME)
+    }
+    val backupExportGateway: BackupExportGateway by lazy {
+        BackupExportContentGateway(contentResolver)
+    }
 
     // Last-resort net: nothing launched on this scope may take the process down
     // over a reminder failure; the arming paths log and recover instead.

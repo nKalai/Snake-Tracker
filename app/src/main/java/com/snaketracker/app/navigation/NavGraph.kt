@@ -103,7 +103,7 @@ fun SnakeTrackerNavGraph(viewModel: SnakeViewModel) {
                 FoodStockScreen(viewModel = viewModel)
             }
             composable(Routes.SETTINGS) {
-                SettingsScreen()
+                SettingsScreen(viewModel = viewModel)
             }
         }
     }

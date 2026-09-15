@@ -21,4 +21,15 @@
 
     <!-- Settings screen. -->
     <string name="settings_title">Settings</string>
+
+    <!-- Backup export (Settings → SAF picker → result dialog). -->
+    <string name="settings_export_backup">Export backup</string>
+    <string name="settings_export_backup_summary">Save all tracker data as a JSON file you choose</string>
+    <string name="backup_export_success_title">Backup saved</string>
+    <string name="backup_export_success_message">Your backup was saved to %1$s.</string>
+    <string name="backup_export_failure_title">Backup failed</string>
+    <string name="backup_export_failure_message">The backup could not be saved: %1$s</string>
+    <string name="backup_export_failure_reason_destination">the chosen location could not be opened for writing</string>
+    <string name="backup_export_failure_reason_unknown">an unexpected error occurred</string>
+    <string name="backup_export_dismiss">OK</string>
 </resources>

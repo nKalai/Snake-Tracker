@@ -8,6 +8,9 @@ import com.snaketracker.app.data.entities.ShedEvent
 import com.snaketracker.app.data.entities.Snake
 import com.snaketracker.app.data.entities.WeightEntry
 import java.time.Clock
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /**
  * Dumps the whole database into the JSON backup format defined by
@@ -18,12 +21,20 @@ import java.time.Clock
 class BackupRepository(
     private val db: AppDatabase,
     private val appVersion: String,
-    private val clock: Clock = Clock.systemUTC()
-) {
+    private val clock: Clock = Clock.systemUTC(),
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO
+) : BackupJsonSource {
 
-    /** All five tables as one JSON backup document. */
-    suspend fun exportAll(): String =
+    /**
+     * All five tables as one JSON backup document. The document build and
+     * its serialization run entirely on [ioDispatcher]: the five reads
+     * already leave the caller's thread inside [androidx.room.withTransaction],
+     * but the encode - the costliest step, growing with the user's data -
+     * must not run in the caller's context either (issue #26 WB2).
+     */
+    override suspend fun exportAll(): String = withContext(ioDispatcher) {
         BackupJson.encodeToString(BackupDocument.serializer(), backupDocument())
+    }
 
     /**
      * Restores a full backup file produced by [exportAll], replacing
