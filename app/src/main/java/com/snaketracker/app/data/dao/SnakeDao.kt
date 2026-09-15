@@ -15,8 +15,16 @@ interface SnakeDao {
     @Query("SELECT * FROM snakes WHERE remindersEnabled = 1")
     suspend fun getAllWithRemindersEnabled(): List<Snake>
 
+    // One-shot dump of the whole table, ordered by id for deterministic output.
+    @Query("SELECT * FROM snakes ORDER BY id ASC")
+    suspend fun getAllOnce(): List<Snake>
+
     @Insert
     suspend fun insert(snake: Snake): Long
+
+    // Whole-table wipe; used only inside the import replace-everything transaction.
+    @Query("DELETE FROM snakes")
+    suspend fun deleteAll()
 
     @Update
     suspend fun update(snake: Snake)

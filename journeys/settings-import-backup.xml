@@ -1,0 +1,12 @@
+<journey name="Settings import backup">
+  <description>Import end-to-end (issue #28): open the app, go to Settings, replace all data from a JSON backup through the system file picker, and verify the result dialog lists the per-table imported counts and the Calendar shows the imported snakes.</description>
+  <actions>
+    <action>Launch Snake Tracker; verify the Calendar tab is shown with its title.</action>
+    <action>Tap the Settings tab in the bottom navigation bar; verify the Settings screen opens with an "Import backup" row.</action>
+    <action>Tap the "Import backup" row; verify the system open-document (Storage Access Framework) picker opens filtered to JSON files.</action>
+    <action>Select a Snake Tracker backup file; verify a confirmation dialog appears warning that importing replaces all current data.</action>
+    <action>Tap "Import" to confirm; verify a "Backup imported" dialog appears listing the imported counts per table (snakes, feedings, sheds, weights, food stock items).</action>
+    <action>Tap OK in the dialog; verify the dialog closes and the Settings screen is visible again.</action>
+    <action>Tap the Calendar tab; verify the agenda shows the snakes that came from the imported backup.</action>
+  </actions>
+</journey>

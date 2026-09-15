@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.ksp)
     alias(libs.plugins.compose.compiler)
+    alias(libs.plugins.kotlin.serialization)
 }
 
 android {
@@ -30,11 +31,26 @@ android {
 
     buildFeatures {
         compose = true
+        // BackupRepository stamps the backup document with versionName.
+        buildConfig = true
     }
 
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
+        }
+    }
+
+    testOptions {
+        unitTests {
+            // Accepted module-wide exception (PR #34 review 🟡): the stub
+            // android.jar returns 0/null instead of throwing "not mocked".
+            // The backup feature no longer relies on it - its failure
+            // logging goes through the injected DefaultBackupCoordinator
+            // .logFailure seam, which JVM tests replace with a recorder -
+            // so anything here still needing the flag is a seam to name,
+            // not a behavior to leave silently returning defaults.
+            isReturnDefaultValues = true
         }
     }
 }
@@ -60,14 +76,19 @@ dependencies {
     implementation(libs.androidx.room.ktx)
     ksp(libs.androidx.room.compiler)
 
+    // JSON backup export (see BackupRepository)
+    implementation(libs.kotlinx.serialization.json)
+
     debugImplementation(libs.androidx.compose.ui.tooling)
 
     // JVM unit tests
     testImplementation(libs.junit)
+    testImplementation(libs.kotlinx.serialization.json)
     testImplementation(libs.kotlinx.coroutines.test)
 
     // Instrumented / Compose UI tests
     androidTestImplementation(libs.androidx.test.ext.junit)
+    androidTestImplementation(libs.kotlinx.serialization.json)
     androidTestImplementation(libs.androidx.test.runner)
     androidTestImplementation(libs.androidx.test.rules)
     androidTestImplementation(libs.androidx.test.espresso.core)
