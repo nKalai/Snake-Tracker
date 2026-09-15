@@ -1,12 +1,10 @@
-package com.snaketracker.app.data
+package com.snaketracker.app.data.backup
 
 import com.snaketracker.app.data.entities.FeedingEvent
 import com.snaketracker.app.data.entities.FoodStockItem
 import com.snaketracker.app.data.entities.ShedEvent
 import com.snaketracker.app.data.entities.Snake
 import com.snaketracker.app.data.entities.WeightEntry
-import com.snaketracker.app.data.backup.toEntity
-import com.snaketracker.app.data.backup.toRow
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -17,7 +15,7 @@ import org.junit.Test
 class BackupRowMappingTest {
 
     @Test
-    fun snakeRow_roundTriips_withNullOptionalDates() {
+    fun snakeRow_roundTrips_withNullOptionalDates() {
         val snake = Snake(
             id = 7,
             name = "Noodle",
@@ -48,7 +46,7 @@ class BackupRowMappingTest {
     }
 
     @Test
-    fun feedingRow_roundTriips_withNullFoodStockReference() {
+    fun feedingRow_roundTrips_withNullFoodStockReference() {
         val event = FeedingEvent(
             id = 3,
             snakeId = 7,
@@ -81,21 +79,21 @@ class BackupRowMappingTest {
     }
 
     @Test
-    fun shedRow_roundTriips() {
+    fun shedRow_roundTrips() {
         val event = ShedEvent(id = 5, snakeId = 7, date = 1_750_000_000_000, complete = false, notes = "Partial")
 
         assertEquals(event, event.toRow().toEntity())
     }
 
     @Test
-    fun weightRow_roundTriips() {
+    fun weightRow_roundTrips() {
         val entry = WeightEntry(id = 6, snakeId = 7, date = 1_750_000_000_000, grams = 1_450.5f, notes = "Post-feed")
 
         assertEquals(entry, entry.toRow().toEntity())
     }
 
     @Test
-    fun foodStockRow_roundTriips() {
+    fun foodStockRow_roundTrips() {
         val item = FoodStockItem(
             id = 8,
             name = "Frozen mice - small",

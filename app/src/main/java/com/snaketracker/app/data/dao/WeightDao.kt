@@ -9,12 +9,12 @@ interface WeightDao {
     @Query("SELECT * FROM weight_entries WHERE snakeId = :snakeId ORDER BY date DESC")
     fun getForSnake(snakeId: Long): Flow<List<WeightEntry>>
 
-    @Insert
-    suspend fun insert(entry: WeightEntry): Long
     // One-shot dump of the whole table, ordered by id for deterministic output.
     @Query("SELECT * FROM weight_entries ORDER BY id ASC")
     suspend fun getAllOnce(): List<WeightEntry>
 
+    @Insert
+    suspend fun insert(entry: WeightEntry): Long
 
     @Update
     suspend fun update(entry: WeightEntry)
