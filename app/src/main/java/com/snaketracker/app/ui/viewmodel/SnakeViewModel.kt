@@ -1,16 +1,32 @@
 package com.snaketracker.app.ui.viewmodel
 
+import android.net.Uri
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.snaketracker.app.data.Repository
+import com.snaketracker.app.data.backup.BackupExportException
+import com.snaketracker.app.data.backup.BackupExportFailureReason
+import com.snaketracker.app.data.backup.BackupExportGateway
+import com.snaketracker.app.data.backup.BackupJsonSource
 import com.snaketracker.app.data.entities.*
+import com.snaketracker.app.ui.model.BackupExportState
 import com.snaketracker.app.ui.model.UpcomingEvent
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import java.util.concurrent.TimeUnit
 
-class SnakeViewModel(private val repository: Repository) : ViewModel() {
+class SnakeViewModel(
+    private val repository: Repository,
+    private val backupJsonSource: BackupJsonSource,
+    private val backupExportGateway: BackupExportGateway
+) : ViewModel() {
 
     val snakes: Flow<List<Snake>> = repository.getAllSnakes()
     val foodStock: Flow<List<FoodStockItem>> = repository.getFoodStock()
@@ -43,6 +59,48 @@ class SnakeViewModel(private val repository: Repository) : ViewModel() {
             events.sortedBy { it.dueDateMillis }
         }
 
+    private val _backupExportState = MutableStateFlow<BackupExportState?>(null)
+
+    /** Non-null while the Settings export-result dialog should be showing. */
+    val backupExportState: StateFlow<BackupExportState?> = _backupExportState.asStateFlow()
+
+    private var exportJob: Job? = null
+
+    /**
+     * Dumps the database and writes it to the [destination] returned by the
+     * SAF create-document picker. Both halves run off the main thread: the
+     * JSON source serializes on Dispatchers.IO and the gateway does its
+     * stream work there too. The outcome lands in [backupExportState].
+     *
+     * One export at a time: a call while an export is still running is
+     * ignored, so a fast double-tap cannot race two results into the dialog.
+     */
+    fun exportBackup(destination: Uri) {
+        if (exportJob?.isActive == true) return
+        exportJob = viewModelScope.launch {
+            _backupExportState.value = try {
+                BackupExportState.Success(
+                    backupExportGateway.save(destination, backupJsonSource.exportAll())
+                )
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // The original exception (and its provider/database detail)
+                // goes to the log; the user gets a string-resource reason.
+                Log.w(TAG, "Backup export failed", e)
+                BackupExportState.Failure(
+                    (e as? BackupExportException)?.reason
+                        ?: BackupExportFailureReason.UNKNOWN
+                )
+            }
+        }
+    }
+
+    /** Hides the export result dialog. */
+    fun dismissBackupExport() {
+        _backupExportState.value = null
+    }
+
     fun snake(id: Long): Flow<Snake?> = repository.getSnake(id)
     fun feedingEvents(snakeId: Long): Flow<List<FeedingEvent>> = repository.getFeedingEvents(snakeId)
     fun shedEvents(snakeId: Long): Flow<List<ShedEvent>> = repository.getShedEvents(snakeId)
@@ -66,4 +124,8 @@ class SnakeViewModel(private val repository: Repository) : ViewModel() {
     fun addFoodStock(item: FoodStockItem) = viewModelScope.launch { repository.addFoodStock(item) }
     fun updateFoodStock(item: FoodStockItem) = viewModelScope.launch { repository.updateFoodStock(item) }
     fun deleteFoodStock(item: FoodStockItem) = viewModelScope.launch { repository.deleteFoodStock(item) }
+
+    private companion object {
+        const val TAG = "SnakeViewModel"
+    }
 }
