@@ -138,6 +138,12 @@ class DefaultBackupCoordinator(
      * idiom behind every backup dialog path: a [CancellationException]
      * (scope death, navigation away) always propagates instead of being
      * reported as a backup outcome.
+     *
+     * Everything else — [Exception]s and [Error]s alike (an oversized file
+     * read can raise [OutOfMemoryError]) — reaches the dialog, honoring the
+     * PRD's "every outcome gets a dialog" criterion (PR #34 review 🟡): at
+     * this last UI boundary, reporting beats crashing, and the stack still
+     * goes to the log through [logFailure].
      */
     private inline fun <T> recoveringFrom(
         logMessage: String,
@@ -148,7 +154,7 @@ class DefaultBackupCoordinator(
             block()
         } catch (e: CancellationException) {
             throw e
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             logFailure(logMessage, e)
             onFailure(e)
         }
