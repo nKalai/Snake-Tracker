@@ -243,7 +243,7 @@ class SettingsBackupImportTest {
 
     /**
      * WB4 "distinct reason per failure kind", proven where strings resolve:
-     * the six failure messages plus the confirm/result copy are each
+     * the seven failure messages plus the confirm/result copy are each
      * non-empty on the device and pairwise distinct — the check the JVM
      * resource-id test honestly cannot make.
      */
@@ -255,6 +255,7 @@ class SettingsBackupImportTest {
             R.string.backup_import_failure_orphan_rows,
             R.string.backup_import_failure_invalid_rows,
             R.string.backup_import_failure_unreadable,
+            R.string.backup_import_failure_too_large,
             R.string.backup_import_failure_database,
             // The surrounding dialog copy the failure messages share a screen with.
             R.string.backup_import_confirm_title,

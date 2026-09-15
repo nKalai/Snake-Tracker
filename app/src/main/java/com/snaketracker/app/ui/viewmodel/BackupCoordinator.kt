@@ -8,6 +8,7 @@ import com.snaketracker.app.data.backup.BackupExportException
 import com.snaketracker.app.data.backup.BackupExportFailureReason
 import com.snaketracker.app.data.backup.BackupExportGateway
 import com.snaketracker.app.data.backup.BackupImportGateway
+import com.snaketracker.app.data.backup.BackupImportRejectException
 import com.snaketracker.app.data.backup.ImportSummary
 import com.snaketracker.app.ui.model.BackupExportState
 import com.snaketracker.app.ui.model.BackupImportState
@@ -92,7 +93,15 @@ class DefaultBackupCoordinator(
             // Only a failed read can stop the engine from running, so the
             // engine's own failure mapping stays nested inside this read gate.
             logMessage = "Backup import could not read the picked file",
-            onFailure = { BackupImportState.Failure(R.string.backup_import_failure_unreadable) }
+            onFailure = { e ->
+                BackupImportState.Failure(
+                    if (e is BackupImportRejectException) {
+                        R.string.backup_import_failure_too_large
+                    } else {
+                        R.string.backup_import_failure_unreadable
+                    }
+                )
+            }
         ) {
             val json = importGateway.read(source)
             recoveringFrom(
