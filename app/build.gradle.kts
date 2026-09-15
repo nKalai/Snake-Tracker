@@ -12,8 +12,8 @@ android {
         applicationId = "com.snaketracker.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 2
-        versionName = "1.0"
+        versionCode = 3
+        versionName = "1.1"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -60,13 +60,11 @@ dependencies {
     implementation(libs.androidx.room.ktx)
     ksp(libs.androidx.room.compiler)
 
-    // WorkManager for local reminder scheduling
-    implementation(libs.androidx.work.runtime.ktx)
-
     debugImplementation(libs.androidx.compose.ui.tooling)
 
     // JVM unit tests
     testImplementation(libs.junit)
+    testImplementation(libs.kotlinx.coroutines.test)
 
     // Instrumented / Compose UI tests
     androidTestImplementation(libs.androidx.test.ext.junit)
