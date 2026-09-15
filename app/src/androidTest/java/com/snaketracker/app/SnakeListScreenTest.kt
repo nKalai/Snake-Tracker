@@ -21,7 +21,14 @@ import org.junit.runner.RunWith
  * runtime permission — UiAutomation fails with "not a changeable permission
  * type"), so flip the appop with a shell command instead: the one-time
  * exact-alarm prompt in MainActivity must not obscure the UI under test.
- * Restores the system default afterwards.
+ *
+ * The allow is deliberately left in place instead of being restored to
+ * `default` afterwards: on Android 14+ the platform kills the process that
+ * holds exact alarms when the appop is revoked ("schedule_exact_alarm
+ * revoked" in am_kill), and here that process is the running instrumentation,
+ * aborting whatever class the runner picks next. `allow` is the emulator's
+ * effective default for this appop, so leaving it set is state-neutral for
+ * other suites.
  */
 private val grantExactAlarmPermission: TestRule = TestRule { base, _: Description ->
     object : Statement() {
@@ -34,13 +41,7 @@ private val grantExactAlarmPermission: TestRule = TestRule { base, _: Descriptio
             uiAutomation.executeShellCommand(
                 "appops set $appPackage SCHEDULE_EXACT_ALARM allow"
             ).close()
-            try {
-                base.evaluate()
-            } finally {
-                uiAutomation.executeShellCommand(
-                    "appops set $appPackage SCHEDULE_EXACT_ALARM default"
-                ).close()
-            }
+            base.evaluate()
         }
     }
 }
