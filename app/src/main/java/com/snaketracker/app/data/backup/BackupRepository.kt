@@ -2,9 +2,12 @@ package com.snaketracker.app.data.backup
 
 import androidx.room.withTransaction
 import com.snaketracker.app.data.AppDatabase
+import com.snaketracker.app.data.entities.FeedingEvent
+import com.snaketracker.app.data.entities.FoodStockItem
+import com.snaketracker.app.data.entities.ShedEvent
+import com.snaketracker.app.data.entities.Snake
+import com.snaketracker.app.data.entities.WeightEntry
 import java.time.Clock
-import java.time.Instant
-import kotlinx.serialization.json.Json
 
 /**
  * Dumps the whole database into the JSON backup format defined by
@@ -28,26 +31,32 @@ class BackupRepository(
         BackupDocument(
             schemaVersion = BackupDocument.SCHEMA_VERSION,
             appVersion = appVersion,
-            exportedAt = Instant.now(clock).toString(),
-            data = BackupData(
-                snakes = db.snakeDao().getAllOnce().map { it.toRow() },
-                feedings = db.feedingDao().getAllOnce().map { it.toRow() },
-                sheds = db.shedDao().getAllOnce().map { it.toRow() },
-                weights = db.weightDao().getAllOnce().map { it.toRow() },
-                foodStock = db.foodStockDao().getAllOnce().map { it.toRow() }
+            exportedAt = formatExportedAt(clock.instant()),
+            data = backupData(
+                snakes = db.snakeDao().getAllOnce(),
+                feedings = db.feedingDao().getAllOnce(),
+                sheds = db.shedDao().getAllOnce(),
+                weights = db.weightDao().getAllOnce(),
+                foodStock = db.foodStockDao().getAllOnce()
             )
         )
     }
-
-    companion object {
-        @Volatile private var INSTANCE: BackupRepository? = null
-
-        fun getInstance(db: AppDatabase, appVersion: String): BackupRepository =
-            INSTANCE ?: synchronized(this) {
-                INSTANCE ?: BackupRepository(db, appVersion).also { INSTANCE = it }
-            }
-    }
 }
 
-/** Shared encoder for the backup wire format: every field is written, even defaults. */
-internal val BackupJson = Json { encodeDefaults = true }
+// Pure pairing of the five entity tables with their row arrays, so the
+// document assembly stays JVM-testable without a Room database (mirrors
+// com.snaketracker.app.data.buildReminderCandidates). A sixth table has to
+// pass through here, where a missing mapping fails a unit test.
+internal fun backupData(
+    snakes: List<Snake>,
+    feedings: List<FeedingEvent>,
+    sheds: List<ShedEvent>,
+    weights: List<WeightEntry>,
+    foodStock: List<FoodStockItem>
+): BackupData = BackupData(
+    snakes = snakes.map { it.toRow() },
+    feedings = feedings.map { it.toRow() },
+    sheds = sheds.map { it.toRow() },
+    weights = weights.map { it.toRow() },
+    foodStock = foodStock.map { it.toRow() }
+)

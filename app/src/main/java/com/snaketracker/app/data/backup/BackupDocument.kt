@@ -5,7 +5,34 @@ import com.snaketracker.app.data.entities.FoodStockItem
 import com.snaketracker.app.data.entities.ShedEvent
 import com.snaketracker.app.data.entities.Snake
 import com.snaketracker.app.data.entities.WeightEntry
+import java.time.Instant
+import java.time.ZoneOffset
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
+
+/**
+ * Shared encoder for the backup wire format: every field is written, even
+ * defaults, so explicit nulls survive on disk (ADR-0002). Lives beside the
+ * schema it locks; tests of the format must encode/decode through this val,
+ * never a test-local copy.
+ */
+internal val BackupJson = Json { encodeDefaults = true }
+
+/**
+ * Locked [BackupDocument.exportedAt] format: ISO-8601 UTC that always
+ * carries seconds (and never a fraction). `Instant.toString`/`ISO_INSTANT`
+ * drop the seconds field on some runtimes when seconds and nanos are zero,
+ * which would give the envelope two shapes; one explicit pattern avoids
+ * depending on that behaviour. Import (#26) validates exactly this pattern.
+ */
+private val ExportedAtFormatter: DateTimeFormatter =
+    DateTimeFormatter.ofPattern("uuuu-MM-dd'T'HH:mm:ss'Z'")
+        .withZone(ZoneOffset.UTC)
+        .withLocale(Locale.ROOT)
+
+internal fun formatExportedAt(instant: Instant): String = ExportedAtFormatter.format(instant)
 
 /**
  * The wire format of a full backup file. This is the only place the JSON
@@ -16,7 +43,9 @@ import kotlinx.serialization.Serializable
  */
 @Serializable
 data class BackupDocument(
-    val schemaVersion: Int = SCHEMA_VERSION,
+    // No default: a file without the key must fail loudly at the import
+    // gate (#26), never silently validate as the current version.
+    val schemaVersion: Int,
     val appVersion: String,
     val exportedAt: String,
     val data: BackupData
@@ -36,19 +65,24 @@ data class BackupData(
     val foodStock: List<FoodStockRow> = emptyList()
 )
 
+// Row payloads carry no defaults on purpose: export always writes every key,
+// so a decoded file missing one is corrupt or hand-edited and must fail fast
+// at the import gate. Defaults here would be a second, unlinked copy of the
+// entity defaults silently rewriting restored data.
+
 @Serializable
 data class SnakeRow(
     val id: Long,
     val name: String,
-    val species: String = "",
-    val morph: String = "",
-    val sex: String = "Unknown",
-    val birthDate: Long? = null,
-    val acquisitionDate: Long? = null,
-    val enclosure: String = "",
-    val notes: String = "",
-    val feedingIntervalDays: Int = 7,
-    val remindersEnabled: Boolean = true
+    val species: String,
+    val morph: String,
+    val sex: String,
+    val birthDate: Long?,
+    val acquisitionDate: Long?,
+    val enclosure: String,
+    val notes: String,
+    val feedingIntervalDays: Int,
+    val remindersEnabled: Boolean
 )
 
 @Serializable
@@ -57,11 +91,11 @@ data class FeedingRow(
     val snakeId: Long,
     val date: Long,
     val foodType: String,
-    val foodSize: String = "",
-    val accepted: Boolean = true,
-    val assist: Boolean = false,
-    val notes: String = "",
-    val foodStockItemId: Long? = null
+    val foodSize: String,
+    val accepted: Boolean,
+    val assist: Boolean,
+    val notes: String,
+    val foodStockItemId: Long?
 )
 
 @Serializable
@@ -69,8 +103,8 @@ data class ShedRow(
     val id: Long,
     val snakeId: Long,
     val date: Long,
-    val complete: Boolean = true,
-    val notes: String = ""
+    val complete: Boolean,
+    val notes: String
 )
 
 @Serializable
@@ -79,7 +113,7 @@ data class WeightRow(
     val snakeId: Long,
     val date: Long,
     val grams: Float,
-    val notes: String = ""
+    val notes: String
 )
 
 @Serializable
@@ -87,10 +121,10 @@ data class FoodStockRow(
     val id: Long,
     val name: String,
     val foodType: String,
-    val size: String = "",
-    val quantity: Int = 0,
-    val lowStockThreshold: Int = 5,
-    val notes: String = ""
+    val size: String,
+    val quantity: Int,
+    val lowStockThreshold: Int,
+    val notes: String
 )
 
 // Entity <-> row mapping. Kept beside the wire format so the mapping is
