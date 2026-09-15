@@ -268,7 +268,7 @@ class SettingsBackupExportTest {
         db = db,
         backup = SettingsBackupHarness.engineReturning(
             // The import half is never reached: the import gateway stays unused.
-            result = ImportSummary.Success(0, 0, 0, 0, 0),
+            result = ImportSummary.Success(emptyList()),
             json = """{"schemaVersion":1,"data":{}}"""
         ),
         exportGateway = SettingsBackupHarness.exportGatewaySavingWith(saveWith)

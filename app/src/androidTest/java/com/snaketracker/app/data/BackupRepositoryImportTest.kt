@@ -16,6 +16,7 @@ import com.snaketracker.app.data.backup.ImportFailure
 import com.snaketracker.app.data.backup.ImportSummary
 import com.snaketracker.app.data.backup.ShedRow
 import com.snaketracker.app.data.backup.SnakeRow
+import com.snaketracker.app.data.backup.TableCount
 import com.snaketracker.app.data.backup.WeightRow
 import com.snaketracker.app.data.entities.FeedingEvent
 import com.snaketracker.app.data.entities.FoodStockItem
@@ -169,6 +170,23 @@ class BackupRepositoryImportTest {
         )
 
     // The device's own data: distinct ids so a missed wipe stays visible.
+    /** The success report the engine owes a restored file: five rows in table order. */
+    private fun expectedCounts(
+        snakes: Int = 0,
+        feedings: Int = 0,
+        sheds: Int = 0,
+        weights: Int = 0,
+        foodStock: Int = 0
+    ) = ImportSummary.Success(
+        listOf(
+            TableCount(BackupTable.SNAKE, snakes),
+            TableCount(BackupTable.FEEDING, feedings),
+            TableCount(BackupTable.SHED, sheds),
+            TableCount(BackupTable.WEIGHT, weights),
+            TableCount(BackupTable.FOOD_STOCK, foodStock)
+        )
+    )
+
     private suspend fun seedDeviceData() {
         db.snakeDao().insert(Snake(id = 7, name = "Device Snake"))
         db.feedingDao().insert(FeedingEvent(id = 70, snakeId = 7, date = 100, foodType = "Rat"))
@@ -213,7 +231,7 @@ class BackupRepositoryImportTest {
 
         val summary = repository.importJson(envelopeJson(fileData))
 
-        assertEquals(ImportSummary.Success(snakes = 2, feedings = 2, sheds = 1, weights = 1, foodStock = 1), summary)
+        assertEquals(expectedCounts(snakes = 2, feedings = 2, sheds = 1, weights = 1, foodStock = 1), summary)
 
         // Device rows are gone; the file's rows stand with their original ids,
         // and the feeding -> snake and feeding -> food-stock references resolve.
@@ -241,7 +259,7 @@ class BackupRepositoryImportTest {
 
         val summary = repository.importJson(envelopeJson(fileData()))
 
-        assertEquals(ImportSummary.Success(snakes = 0, feedings = 0, sheds = 0, weights = 0, foodStock = 0), summary)
+        assertEquals(expectedCounts(snakes = 0, feedings = 0, sheds = 0, weights = 0, foodStock = 0), summary)
         val tables = snapshotTables()
         assertEquals(emptyList<Snake>(), tables.snakes)
         assertEquals(emptyList<FeedingEvent>(), tables.feedings)
@@ -259,7 +277,7 @@ class BackupRepositoryImportTest {
 
         val summary = repository.importJson(envelopeJson(fileData))
 
-        assertEquals(ImportSummary.Success(snakes = 1, feedings = 1, sheds = 0, weights = 0, foodStock = 0), summary)
+        assertEquals(expectedCounts(snakes = 1, feedings = 1, sheds = 0, weights = 0, foodStock = 0), summary)
         val feeding = db.feedingDao().getAllOnce().single()
         assertEquals(10L, feeding.id)
         assertEquals(1L, feeding.snakeId)
@@ -350,7 +368,7 @@ class BackupRepositoryImportTest {
     fun importJson_importIntoEmptyDatabase_writesFileRows() = runBlocking {
         val summary = repository.importJson(envelopeJson(fileData(snakes = listOf(snakeRow(id = 5, name = "Solo")))))
 
-        assertEquals(ImportSummary.Success(snakes = 1, feedings = 0, sheds = 0, weights = 0, foodStock = 0), summary)
+        assertEquals(expectedCounts(snakes = 1, feedings = 0, sheds = 0, weights = 0, foodStock = 0), summary)
         assertEquals(listOf(5L), db.snakeDao().getAllOnce().map { it.id })
     }
 }

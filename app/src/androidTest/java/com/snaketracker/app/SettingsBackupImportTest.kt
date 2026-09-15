@@ -14,8 +14,10 @@ import androidx.test.core.app.ApplicationProvider
 import com.snaketracker.app.data.AppDatabase
 import com.snaketracker.app.data.backup.BackupEngine
 import com.snaketracker.app.data.backup.BackupImportGateway
+import com.snaketracker.app.data.backup.BackupTable
 import com.snaketracker.app.data.backup.ImportFailure
 import com.snaketracker.app.data.backup.ImportSummary
+import com.snaketracker.app.data.backup.TableCount
 import com.snaketracker.app.testing.SettingsBackupHarness
 import com.snaketracker.app.ui.screens.BackupSourcePicker
 import com.snaketracker.app.ui.screens.SettingsScreen
@@ -165,7 +167,15 @@ class SettingsBackupImportTest {
     /** WB3 + WB4 + WB5: a confirmed import lists the per-table counts and re-arms once. */
     @Test
     fun confirmedImport_resultDialogListsCounts_andRearmsReminderOnce() {
-        val counts = ImportSummary.Success(snakes = 2, feedings = 5, sheds = 1, weights = 3, foodStock = 4)
+        val counts = ImportSummary.Success(
+            listOf(
+                TableCount(BackupTable.SNAKE, 2),
+                TableCount(BackupTable.FEEDING, 5),
+                TableCount(BackupTable.SHED, 1),
+                TableCount(BackupTable.WEIGHT, 3),
+                TableCount(BackupTable.FOOD_STOCK, 4)
+            )
+        )
         val harness = Harness(SettingsBackupHarness.importGatewayReading(backupJson), engineReturning(counts))
         viewModel = harness.viewModel
         val picker = TestPicker { viewModel.requestBackupImport(pickedUri()) }
@@ -297,16 +307,28 @@ class SettingsBackupImportTest {
     /** The dialog's contract: five lines, in table order, from the plural resources. */
     private fun expectedCountsMessage(counts: ImportSummary.Success): String {
         val resources = composeRule.activity.resources
-        return listOf(
-            resources.getQuantityString(R.plurals.import_count_snakes, counts.snakes, counts.snakes),
-            resources.getQuantityString(R.plurals.import_count_feedings, counts.feedings, counts.feedings),
-            resources.getQuantityString(R.plurals.import_count_sheds, counts.sheds, counts.sheds),
-            resources.getQuantityString(R.plurals.import_count_weights, counts.weights, counts.weights),
-            resources.getQuantityString(R.plurals.import_count_food_stock, counts.foodStock, counts.foodStock)
-        ).joinToString("\n")
+        return counts.counts.joinToString("\n") { table ->
+            val plural = when (table.table) {
+                BackupTable.SNAKE -> R.plurals.import_count_snakes
+                BackupTable.FEEDING -> R.plurals.import_count_feedings
+                BackupTable.SHED -> R.plurals.import_count_sheds
+                BackupTable.WEIGHT -> R.plurals.import_count_weights
+                BackupTable.FOOD_STOCK -> R.plurals.import_count_food_stock
+            }
+            resources.getQuantityString(plural, table.count, table.count)
+        }
     }
 
     private companion object {
-        val EMPTY_SUCCESS = ImportSummary.Success(0, 0, 0, 0, 0)
+        // An empty file still reports five zero rows, in table order.
+        val EMPTY_SUCCESS = ImportSummary.Success(
+            listOf(
+                TableCount(BackupTable.SNAKE, 0),
+                TableCount(BackupTable.FEEDING, 0),
+                TableCount(BackupTable.SHED, 0),
+                TableCount(BackupTable.WEIGHT, 0),
+                TableCount(BackupTable.FOOD_STOCK, 0)
+            )
+        )
     }
 }

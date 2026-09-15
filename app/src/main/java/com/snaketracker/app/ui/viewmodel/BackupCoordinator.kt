@@ -112,15 +112,9 @@ class DefaultBackupCoordinator(
                 onFailure = { BackupImportState.Failure(R.string.backup_import_failure_database) }
             ) {
                 when (val summary = withContext(ioDispatcher) { backupEngine.importJson(json) }) {
-                    is ImportSummary.Success -> BackupImportState.Success(
-                        BackupImportState.Counts(
-                            snakes = summary.snakes,
-                            feedings = summary.feedings,
-                            sheds = summary.sheds,
-                            weights = summary.weights,
-                            foodStock = summary.foodStock
-                        )
-                    )
+                    // The engine's counts travel to the dialog unchanged:
+                    // one carrier, no per-field re-copy (PR #34 review 🟡).
+                    is ImportSummary.Success -> BackupImportState.Success(summary.counts)
                     is ImportSummary.Failure ->
                         BackupImportState.Failure(backupImportMessageFor(summary.reason))
                 }

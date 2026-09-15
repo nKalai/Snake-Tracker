@@ -3,6 +3,8 @@ package com.snaketracker.app.ui.viewmodel
 import android.net.TestUri
 import android.net.Uri
 import com.snaketracker.app.R
+import com.snaketracker.app.data.backup.BackupTable
+import com.snaketracker.app.data.backup.TableCount
 import com.snaketracker.app.data.fakeTestRepository
 import com.snaketracker.app.ui.model.BackupExportState
 import com.snaketracker.app.ui.model.BackupImportState
@@ -33,7 +35,13 @@ class SnakeViewModelBackupImportTest {
     /** Coordinator stand-in recording every confirmed import. */
     private class FakeCoordinator(
         var result: BackupImportState = BackupImportState.Success(
-            BackupImportState.Counts(2, 5, 1, 3, 4)
+            listOf(
+                TableCount(BackupTable.SNAKE, 2),
+                TableCount(BackupTable.FEEDING, 5),
+                TableCount(BackupTable.SHED, 1),
+                TableCount(BackupTable.WEIGHT, 3),
+                TableCount(BackupTable.FOOD_STOCK, 4)
+            )
         )
     ) : BackupCoordinator {
         var importCalls = 0

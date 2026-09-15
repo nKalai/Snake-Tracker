@@ -13,6 +13,7 @@ import com.snaketracker.app.data.backup.BackupImportRejectReason
 import com.snaketracker.app.data.backup.BackupTable
 import com.snaketracker.app.data.backup.ImportFailure
 import com.snaketracker.app.data.backup.ImportSummary
+import com.snaketracker.app.data.backup.TableCount
 import com.snaketracker.app.ui.model.BackupExportState
 import com.snaketracker.app.ui.model.BackupImportState
 import java.io.IOException
@@ -50,7 +51,15 @@ class BackupCoordinatorTest {
     private companion object {
         // Static so the nested fakes can use them as defaults.
         val backupJson = """{"schemaVersion":1,"appVersion":"1.1","data":{}}"""
-        val counts = ImportSummary.Success(snakes = 2, feedings = 5, sheds = 1, weights = 3, foodStock = 4)
+        val counts = ImportSummary.Success(
+            listOf(
+                TableCount(BackupTable.SNAKE, 2),
+                TableCount(BackupTable.FEEDING, 5),
+                TableCount(BackupTable.SHED, 1),
+                TableCount(BackupTable.WEIGHT, 3),
+                TableCount(BackupTable.FOOD_STOCK, 4)
+            )
+        )
         const val savedFileName = "snake-tracker-backup-2026-04-01.json"
     }
 
@@ -62,7 +71,7 @@ class BackupCoordinatorTest {
     /** Records which engine half ran on which dispatcher, and can fail either. */
     private class FakeEngine(
         private val json: String = backupJson,
-        private val result: ImportSummary = ImportSummary.Success(0, 0, 0, 0, 0),
+        private val result: ImportSummary = ImportSummary.Success(emptyList()),
         private val exportFailWith: Exception? = null,
         private val importFailWith: Exception? = null
     ) : BackupEngine {
@@ -248,12 +257,8 @@ class BackupCoordinatorTest {
 
         val state = coordinator.importBackup(source)
 
-        assertEquals(
-            BackupImportState.Success(
-                BackupImportState.Counts(snakes = 2, feedings = 5, sheds = 1, weights = 3, foodStock = 4)
-            ),
-            state
-        )
+        // The engine's one counts list reaches the dialog state verbatim.
+        assertEquals(BackupImportState.Success(counts.counts), state)
         // The exact bytes the gateway read are what the engine got.
         assertEquals(backupJson, engine.importedJson)
     }

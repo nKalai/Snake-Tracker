@@ -28,6 +28,7 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.snaketracker.app.R
+import com.snaketracker.app.data.backup.BackupTable
 import com.snaketracker.app.ui.model.BackupExportState
 import com.snaketracker.app.ui.model.BackupImportState
 import com.snaketracker.app.ui.model.backupExportMessageFor
@@ -218,18 +219,9 @@ private fun BackupImportResultDialog(
     when (state) {
         is BackupImportState.Success -> {
             title = stringResource(R.string.backup_import_success_title)
-            val counts = state.counts
-            message = listOf(
-                pluralStringResource(R.plurals.import_count_snakes, counts.snakes, counts.snakes),
-                pluralStringResource(R.plurals.import_count_feedings, counts.feedings, counts.feedings),
-                pluralStringResource(R.plurals.import_count_sheds, counts.sheds, counts.sheds),
-                pluralStringResource(R.plurals.import_count_weights, counts.weights, counts.weights),
-                pluralStringResource(
-                    R.plurals.import_count_food_stock,
-                    counts.foodStock,
-                    counts.foodStock
-                )
-            ).joinToString("\n")
+            message = state.counts
+                .map { pluralStringResource(importCountPluralFor(it.table), it.count, it.count) }
+                .joinToString("\n")
         }
 
         is BackupImportState.Failure -> {
@@ -246,6 +238,19 @@ private fun BackupImportResultDialog(
         dismissTag = "backup_import_dismiss",
         onDismiss = onDismiss
     )
+}
+
+/**
+ * The plural resource a table's imported-row count line uses. The `when`
+ * is exhaustive over [BackupTable], so a sixth table cannot reach this
+ * dialog without naming its own plural here.
+ */
+private fun importCountPluralFor(table: BackupTable): Int = when (table) {
+    BackupTable.SNAKE -> R.plurals.import_count_snakes
+    BackupTable.FEEDING -> R.plurals.import_count_feedings
+    BackupTable.SHED -> R.plurals.import_count_sheds
+    BackupTable.WEIGHT -> R.plurals.import_count_weights
+    BackupTable.FOOD_STOCK -> R.plurals.import_count_food_stock
 }
 
 /**

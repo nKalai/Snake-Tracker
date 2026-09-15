@@ -6,7 +6,9 @@ import androidx.lifecycle.ViewModel
 import com.snaketracker.app.data.backup.BackupEngine
 import com.snaketracker.app.data.backup.BackupExportGateway
 import com.snaketracker.app.data.backup.BackupImportGateway
+import com.snaketracker.app.data.backup.BackupTable
 import com.snaketracker.app.data.backup.ImportSummary
+import com.snaketracker.app.data.backup.TableCount
 import com.snaketracker.app.data.fakeTestRepository
 import com.snaketracker.app.ui.model.BackupExportState
 import com.snaketracker.app.ui.model.BackupImportState
@@ -55,7 +57,9 @@ class WiringTest {
         override suspend fun importJson(json: String): ImportSummary {
             importCalls += 1
             assertEquals(backupJson, json)
-            return ImportSummary.Success(1, 2, 0, 0, 0)
+            return ImportSummary.Success(
+                listOf(TableCount(BackupTable.SNAKE, 1), TableCount(BackupTable.FEEDING, 2))
+            )
         }
     }
 
