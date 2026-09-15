@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -27,30 +28,37 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.snaketracker.app.R
+import com.snaketracker.app.data.backup.BackupExportFailureReason
+import com.snaketracker.app.ui.model.BackupExportState
 import com.snaketracker.app.ui.model.BackupImportState
 import com.snaketracker.app.ui.viewmodel.SnakeViewModel
+import java.time.LocalDate
 
 /**
- * Top-level Settings screen. Its first capability is the JSON backup import
- * (issue #28): the row launches the Storage Access Framework open-document
- * picker for JSON files, a destructive-worded confirmation dialog gates the
- * replace-everything run, and the outcome is reported in a result dialog.
+ * Top-level Settings screen. It carries the JSON backup pair: the export
+ * row (issue #26) launches the SAF create-document picker with a
+ * date-stamped suggested name, and the import row (issue #28) launches the
+ * SAF open-document picker for JSON files, gates the replace-everything
+ * run behind a destructive-worded confirmation dialog, and reports each
+ * outcome in a result dialog.
  *
- * The picker lives behind [BackupSourcePicker] so instrumented tests can
- * drive the dialogs without the system file UI; the real default is the SAF
- * contract wired straight into [SnakeViewModel.requestBackupImport].
- *
- * INSERTION POINT (import/export): the export action (issue #26) joins the
- * import row in the `Scaffold` body below.
+ * Both pickers live behind their small interfaces
+ * ([BackupDestinationPicker], [BackupSourcePicker]) so instrumented tests
+ * can drive the dialogs without the system file UI; the real defaults are
+ * the SAF contracts wired straight into [SnakeViewModel.exportBackup] and
+ * [SnakeViewModel.requestBackupImport].
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     viewModel: SnakeViewModel,
     modifier: Modifier = Modifier,
+    backupDestinationPicker: BackupDestinationPicker =
+        rememberCreateDocumentPicker { uri -> if (uri != null) viewModel.exportBackup(uri) },
     backupSourcePicker: BackupSourcePicker =
         rememberOpenDocumentPicker { uri -> if (uri != null) viewModel.requestBackupImport(uri) }
 ) {
+    val exportState by viewModel.backupExportState.collectAsStateWithLifecycle()
     val pendingImportUri by viewModel.pendingImportUri.collectAsStateWithLifecycle()
     val importState by viewModel.backupImportState.collectAsStateWithLifecycle()
 
@@ -68,6 +76,23 @@ fun SettingsScreen(
         }
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_export_backup)) },
+                supportingContent = {
+                    Text(stringResource(R.string.settings_export_backup_summary))
+                },
+                leadingContent = {
+                    Icon(
+                        imageVector = Icons.Default.Upload,
+                        contentDescription = null
+                    )
+                },
+                modifier = Modifier
+                    .testTag("export_backup_row")
+                    .clickable {
+                        backupDestinationPicker.launch(backupFileName(LocalDate.now()))
+                    }
+            )
             ListItem(
                 headlineContent = { Text(stringResource(R.string.settings_import_backup)) },
                 supportingContent = {
@@ -93,13 +118,62 @@ fun SettingsScreen(
         )
     }
 
-    val state = importState
+    val state = exportState
     if (state != null) {
-        BackupImportResultDialog(
+        BackupExportResultDialog(
             state = state,
+            onDismiss = viewModel::dismissBackupExport
+        )
+    }
+
+    val importResult = importState
+    if (importResult != null) {
+        BackupImportResultDialog(
+            state = importResult,
             onDismiss = viewModel::dismissBackupImport
         )
     }
+}
+
+/** Outcome dialog for a backup export: success names the saved file, failure states the reason. */
+@Composable
+private fun BackupExportResultDialog(
+    state: BackupExportState,
+    onDismiss: () -> Unit
+) {
+    val title: String
+    val message: String
+    when (state) {
+        is BackupExportState.Success -> {
+            title = stringResource(R.string.backup_export_success_title)
+            message = stringResource(R.string.backup_export_success_message, state.fileName)
+        }
+
+        is BackupExportState.Failure -> {
+            title = stringResource(R.string.backup_export_failure_title)
+            val reasonText = when (state.reason) {
+                BackupExportFailureReason.DESTINATION_UNOPENABLE ->
+                    stringResource(R.string.backup_export_failure_reason_destination)
+                BackupExportFailureReason.UNKNOWN ->
+                    stringResource(R.string.backup_export_failure_reason_unknown)
+            }
+            message = stringResource(R.string.backup_export_failure_message, reasonText)
+        }
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(title, modifier = Modifier.testTag("backup_export_dialog_title"))
+        },
+        text = {
+            Text(message, modifier = Modifier.testTag("backup_export_message"))
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss, modifier = Modifier.testTag("backup_export_dismiss")) {
+                Text(stringResource(R.string.backup_export_dismiss))
+            }
+        }
+    )
 }
 
 /**
@@ -187,6 +261,36 @@ private fun BackupImportResultDialog(
 }
 
 /**
+ * The suggested name for a backup document: `snake-tracker-backup-<yyyy-MM-dd>.json`,
+ * dated with the device's local calendar day ([LocalDate.toString] is ISO
+ * `yyyy-MM-dd`). The picker lets the user change it; the gateway then reports
+ * the name that was actually saved.
+ */
+internal fun backupFileName(date: LocalDate): String = "snake-tracker-backup-$date.json"
+
+/** Launches the create-document picker with [suggestedFileName]. */
+fun interface BackupDestinationPicker {
+    fun launch(suggestedFileName: String)
+}
+
+/**
+ * Production [BackupDestinationPicker]: `ACTION_CREATE_DOCUMENT` for JSON via
+ * [ActivityResultContracts.CreateDocument]; the user-chosen URI (or null on
+ * cancel) is handed to [onDocumentPicked].
+ */
+@Composable
+private fun rememberCreateDocumentPicker(
+    onDocumentPicked: (Uri?) -> Unit
+): BackupDestinationPicker {
+    val launcher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument(JSON_MIME_TYPE)
+    ) { uri -> onDocumentPicked(uri) }
+    return remember(launcher) {
+        BackupDestinationPicker { name -> launcher.launch(name) }
+    }
+}
+
+/**
  * Launches the picker for the JSON backup file the user wants to import.
  * The JSON restriction is the capability itself, so it lives inside the
  * implementations — callers cannot pick a different filter, and the fake
@@ -212,5 +316,7 @@ private fun rememberOpenDocumentPicker(
         BackupSourcePicker { launcher.launch(JSON_MIME_TYPES) }
     }
 }
+
+private const val JSON_MIME_TYPE = "application/json"
 
 private val JSON_MIME_TYPES = arrayOf("application/json")

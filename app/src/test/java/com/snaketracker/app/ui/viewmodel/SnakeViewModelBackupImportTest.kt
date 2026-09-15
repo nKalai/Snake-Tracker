@@ -3,8 +3,10 @@ package com.snaketracker.app.ui.viewmodel
 import android.net.TestUri
 import android.net.Uri
 import com.snaketracker.app.R
+import com.snaketracker.app.data.backup.BackupExportGateway
 import com.snaketracker.app.data.backup.BackupImportGateway
 import com.snaketracker.app.data.backup.BackupJsonSink
+import com.snaketracker.app.data.backup.BackupJsonSource
 import com.snaketracker.app.data.fakeTestRepository
 import com.snaketracker.app.data.backup.BackupTable
 import com.snaketracker.app.data.backup.ImportFailure
@@ -81,6 +83,18 @@ class SnakeViewModelBackupImportTest {
         val hook: suspend () -> Unit = { calls += 1 }
     }
 
+    // Export-side collaborators the import suite never reaches: failing
+    // stubs keep the shared ViewModel constructor honest.
+    private object UnusedExportSource : BackupJsonSource {
+        override suspend fun exportAll(): String =
+            throw UnsupportedOperationException("import tests never export")
+    }
+
+    private object UnusedExportGateway : BackupExportGateway {
+        override suspend fun save(destination: Uri, json: String): String =
+            throw UnsupportedOperationException("import tests never write")
+    }
+
     /**
      * `viewModelScope` launches on `Dispatchers.Main.immediate`; pin Main to
      * this test's scheduler so [advanceUntilIdle] runs the launched work
@@ -105,7 +119,9 @@ class SnakeViewModelBackupImportTest {
         rearm: RecordingRearm = RecordingRearm()
     ) = SnakeViewModel(
         repository = fakeTestRepository(),
+        backupJsonSource = UnusedExportSource,
         backupJsonSink = sink,
+        backupExportGateway = UnusedExportGateway,
         backupImportGateway = gateway,
         rearmReminders = rearm.hook,
         ioDispatcher = StandardTestDispatcher(testScheduler)
@@ -202,7 +218,9 @@ class SnakeViewModelBackupImportTest {
             val rearm = RecordingRearm()
             val viewModel = SnakeViewModel(
                 repository = fakeTestRepository(),
+                backupJsonSource = UnusedExportSource,
                 backupJsonSink = sink,
+                backupExportGateway = UnusedExportGateway,
                 backupImportGateway = gateway,
                 rearmReminders = rearm.hook,
                 ioDispatcher = io

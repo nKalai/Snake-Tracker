@@ -4,6 +4,8 @@ import android.app.Application
 import android.util.Log
 import com.snaketracker.app.data.AppDatabase
 import com.snaketracker.app.data.Repository
+import com.snaketracker.app.data.backup.BackupExportContentGateway
+import com.snaketracker.app.data.backup.BackupExportGateway
 import com.snaketracker.app.data.backup.BackupImportContentGateway
 import com.snaketracker.app.data.backup.BackupImportGateway
 import com.snaketracker.app.data.backup.BackupRepository
@@ -25,6 +27,9 @@ class SnakeTrackerApp : Application() {
     val repository: Repository by lazy { Repository.getInstance(database) }
     val backupRepository: BackupRepository by lazy {
         BackupRepository(database, appVersion = BuildConfig.VERSION_NAME)
+    }
+    val backupExportGateway: BackupExportGateway by lazy {
+        BackupExportContentGateway(contentResolver)
     }
     val backupImportGateway: BackupImportGateway by lazy {
         BackupImportContentGateway(contentResolver)

@@ -6,16 +6,22 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.snaketracker.app.R
 import com.snaketracker.app.data.Repository
+import com.snaketracker.app.data.backup.BackupExportException
+import com.snaketracker.app.data.backup.BackupExportFailureReason
+import com.snaketracker.app.data.backup.BackupExportGateway
 import com.snaketracker.app.data.backup.BackupImportGateway
 import com.snaketracker.app.data.backup.BackupJsonSink
+import com.snaketracker.app.data.backup.BackupJsonSource
 import com.snaketracker.app.data.backup.ImportSummary
 import com.snaketracker.app.data.entities.*
+import com.snaketracker.app.ui.model.BackupExportState
 import com.snaketracker.app.ui.model.BackupImportState
 import com.snaketracker.app.ui.model.UpcomingEvent
 import com.snaketracker.app.ui.model.backupImportMessageFor
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -27,7 +33,9 @@ import java.util.concurrent.TimeUnit
 
 class SnakeViewModel(
     private val repository: Repository,
+    private val backupJsonSource: BackupJsonSource,
     private val backupJsonSink: BackupJsonSink,
+    private val backupExportGateway: BackupExportGateway,
     private val backupImportGateway: BackupImportGateway,
     private val rearmReminders: suspend () -> Unit,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO
@@ -63,6 +71,48 @@ class SnakeViewModel(
             }
             events.sortedBy { it.dueDateMillis }
         }
+
+    private val _backupExportState = MutableStateFlow<BackupExportState?>(null)
+
+    /** Non-null while the Settings export-result dialog should be showing. */
+    val backupExportState: StateFlow<BackupExportState?> = _backupExportState.asStateFlow()
+
+    private var exportJob: Job? = null
+
+    /**
+     * Dumps the database and writes it to the [destination] returned by the
+     * SAF create-document picker. Both halves run off the main thread: the
+     * JSON source serializes on Dispatchers.IO and the gateway does its
+     * stream work there too. The outcome lands in [backupExportState].
+     *
+     * One export at a time: a call while an export is still running is
+     * ignored, so a fast double-tap cannot race two results into the dialog.
+     */
+    fun exportBackup(destination: Uri) {
+        if (exportJob?.isActive == true) return
+        exportJob = viewModelScope.launch {
+            _backupExportState.value = try {
+                BackupExportState.Success(
+                    backupExportGateway.save(destination, backupJsonSource.exportAll())
+                )
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // The original exception (and its provider/database detail)
+                // goes to the log; the user gets a string-resource reason.
+                Log.w(LOG_TAG, "Backup export failed", e)
+                BackupExportState.Failure(
+                    (e as? BackupExportException)?.reason
+                        ?: BackupExportFailureReason.UNKNOWN
+                )
+            }
+        }
+    }
+
+    /** Hides the export result dialog. */
+    fun dismissBackupExport() {
+        _backupExportState.value = null
+    }
 
     private val _pendingImportUri = MutableStateFlow<Uri?>(null)
 

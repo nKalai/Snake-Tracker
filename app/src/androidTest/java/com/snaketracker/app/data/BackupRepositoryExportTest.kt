@@ -16,6 +16,10 @@ import com.snaketracker.app.data.entities.WeightEntry
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneOffset
+import java.util.concurrent.Executors
+import kotlin.coroutines.CoroutineContext
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -141,6 +145,34 @@ class BackupRepositoryExportTest {
         assertTrue(json.contains("\"exportedAt\":\"2026-04-01T10:15:00Z\""))
     }
 
+    /**
+     * WB2: the JSON encode must run entirely on an injected IO dispatcher,
+     * not on the caller's thread. The recording dispatcher only ever notes
+     * the thread that ran the export body, so this pins the dispatch target:
+     * the named probe thread, never the instrumentation thread that called
+     * [BackupRepository.exportAll].
+     */
+    @Test
+    fun exportAll_runsOnInjectedIoDispatcherNotTheCallerThread() = runBlocking {
+        val executor = Executors.newSingleThreadExecutor { runnable ->
+            Thread(runnable, "backup-io-probe")
+        }
+        try {
+            val recorder = ThreadRecordingDispatcher(executor.asCoroutineDispatcher())
+
+            BackupRepository(
+                db,
+                appVersion = "1.1",
+                clock = fixedClock,
+                ioDispatcher = recorder
+            ).exportAll()
+
+            assertEquals("backup-io-probe", recorder.ranOn)
+        } finally {
+            executor.shutdown()
+        }
+    }
+
     @Test
     fun exportAll_outOfIdInsertionOrder_emitsRowsByIdAscending() = runBlocking {
         // Seeded so insertion order differs from id order: pins the ORDER BY
@@ -166,5 +198,21 @@ class BackupRepositoryExportTest {
         assertEquals(listOf(20L, 21L), document.data.sheds.map { it.id })
         assertEquals(listOf(30L, 31L), document.data.weights.map { it.id })
         assertEquals(listOf(100L, 101L), document.data.foodStock.map { it.id })
+    }
+}
+
+/** Delegating dispatcher that records which thread ran the dispatched work. */
+private class ThreadRecordingDispatcher(
+    private val delegate: CoroutineDispatcher
+) : CoroutineDispatcher() {
+    @Volatile
+    var ranOn: String? = null
+        private set
+
+    override fun dispatch(context: CoroutineContext, block: Runnable) {
+        delegate.dispatch(context) {
+            ranOn = Thread.currentThread().name
+            block.run()
+        }
     }
 }

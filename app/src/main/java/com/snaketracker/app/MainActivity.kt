@@ -61,9 +61,14 @@ class MainActivity : ComponentActivity() {
             SnakeTrackerTheme {
                 val viewModel: SnakeViewModel = viewModel(
                     factory = ViewModelFactory(
-                        app.repository,
-                        app.backupRepository,
-                        app.backupImportGateway,
+                        repository = app.repository,
+                        // BackupRepository implements both halves of the
+                        // backup JSON surface: the same instance serves the
+                        // export dump and the import restore.
+                        backupJsonSource = app.backupRepository,
+                        backupJsonSink = app.backupRepository,
+                        backupExportGateway = app.backupExportGateway,
+                        backupImportGateway = app.backupImportGateway,
                         // Issue #28 WB5: after a successful import the alarm is
                         // recomputed from the new data through the reschedule-
                         // only entry — the same next-instant + re-arm pair the

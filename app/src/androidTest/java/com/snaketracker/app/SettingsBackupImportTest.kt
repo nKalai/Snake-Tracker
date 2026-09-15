@@ -13,8 +13,10 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.core.app.ApplicationProvider
 import com.snaketracker.app.data.AppDatabase
 import com.snaketracker.app.data.Repository
+import com.snaketracker.app.data.backup.BackupExportGateway
 import com.snaketracker.app.data.backup.BackupImportGateway
 import com.snaketracker.app.data.backup.BackupJsonSink
+import com.snaketracker.app.data.backup.BackupJsonSource
 import com.snaketracker.app.data.backup.ImportFailure
 import com.snaketracker.app.data.backup.ImportSummary
 import com.snaketracker.app.ui.screens.BackupSourcePicker
@@ -84,10 +86,25 @@ class SettingsBackupImportTest {
         val rearmCalls = AtomicInteger(0)
         val viewModel = SnakeViewModel(
             repository = Repository(db),
+            backupJsonSource = UnusedExportSource,
             backupJsonSink = sink,
+            backupExportGateway = UnusedExportGateway,
             backupImportGateway = gateway,
             rearmReminders = { rearmCalls.incrementAndGet() }
         )
+    }
+
+    // Export-side collaborators the import suite never reaches: failing
+    // stubs keep the shared ViewModel constructor honest.
+    private companion object {
+        val UnusedExportSource = object : BackupJsonSource {
+            override suspend fun exportAll(): String =
+                throw UnsupportedOperationException("import tests never export")
+        }
+        val UnusedExportGateway = object : BackupExportGateway {
+            override suspend fun save(destination: Uri, json: String): String =
+                throw UnsupportedOperationException("import tests never write")
+        }
     }
 
     private fun gatewayReturning(json: String): BackupImportGateway =
