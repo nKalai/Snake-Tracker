@@ -21,6 +21,10 @@ interface FeedingDao {
     @Query(LAST_FEEDING_PER_SNAKE_SQL)
     suspend fun getLastFeedingPerSnakeOnce(): List<LastFeedingInfo>
 
+    // One-shot dump of the whole table, ordered by id for deterministic output.
+    @Query("SELECT * FROM feeding_events ORDER BY id ASC")
+    suspend fun getAllOnce(): List<FeedingEvent>
+
     @Insert
     suspend fun insert(event: FeedingEvent): Long
 
