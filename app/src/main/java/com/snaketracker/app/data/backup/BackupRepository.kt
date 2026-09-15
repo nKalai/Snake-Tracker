@@ -23,7 +23,7 @@ class BackupRepository(
     private val appVersion: String,
     private val clock: Clock = Clock.systemUTC(),
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO
-) : BackupJsonSource {
+) : BackupJsonSink, BackupJsonSource {
 
     /**
      * All five tables as one JSON backup document. The document build and
@@ -54,10 +54,11 @@ class BackupRepository(
      * Handoff to #28: after a successful import the armed reminder alarm
      * still reflects the pre-import plan, because [com.snaketracker.app.
      * reminders.ReminderArming] refreshes only from its receivers. The
-     * import UI must trigger a reminder re-arm on [ImportSummary.Success]
-     * so reminder-enabled snakes coming from the file get their alarms.
+     * import UI triggers a reminder re-arm on [ImportSummary.Success]
+     * (issue #28 WB5) so reminder-enabled snakes coming from the file get
+     * their alarms without waiting for the next app launch.
      */
-    suspend fun importJson(json: String): ImportSummary {
+    override suspend fun importJson(json: String): ImportSummary {
         val data = when (val inspection = inspectBackup(json)) {
             is ImportInspection.Rejected -> return ImportSummary.Failure(inspection.reason)
             is ImportInspection.Accepted -> inspection.document.data

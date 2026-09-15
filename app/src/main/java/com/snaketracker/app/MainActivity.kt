@@ -17,12 +17,15 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.snaketracker.app.navigation.SnakeTrackerNavGraph
 import com.snaketracker.app.reminders.ExactAlarmPromptPreferences
+import com.snaketracker.app.reminders.ReminderArming
 import com.snaketracker.app.reminders.exactPermissionHeld
 import com.snaketracker.app.reminders.shouldShowExactAlarmPrompt
 import com.snaketracker.app.ui.screens.ExactAlarmPromptDialog
 import com.snaketracker.app.ui.theme.SnakeTrackerTheme
 import com.snaketracker.app.ui.viewmodel.SnakeViewModel
 import com.snaketracker.app.ui.viewmodel.ViewModelFactory
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 class MainActivity : ComponentActivity() {
 
@@ -58,9 +61,26 @@ class MainActivity : ComponentActivity() {
             SnakeTrackerTheme {
                 val viewModel: SnakeViewModel = viewModel(
                     factory = ViewModelFactory(
-                        app.repository,
-                        app.backupRepository,
-                        app.backupExportGateway
+                        repository = app.repository,
+                        // BackupRepository implements both halves of the
+                        // backup JSON surface: the same instance serves the
+                        // export dump and the import restore.
+                        backupJsonSource = app.backupRepository,
+                        backupJsonSink = app.backupRepository,
+                        backupExportGateway = app.backupExportGateway,
+                        backupImportGateway = app.backupImportGateway,
+                        // Issue #28 WB5: after a successful import the alarm is
+                        // recomputed from the new data through the reschedule-
+                        // only entry — the same next-instant + re-arm pair the
+                        // launch-time observer uses, with no due-now
+                        // notification pass (importing is not a due-time
+                        // event). Off Main, on the receivers' Dispatchers.
+                        // Default convention.
+                        rearmReminders = {
+                            withContext(Dispatchers.Default) {
+                                ReminderArming.reschedule(app)
+                            }
+                        }
                     )
                 )
                 SnakeTrackerNavGraph(viewModel = viewModel)

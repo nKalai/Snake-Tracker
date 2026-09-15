@@ -18,7 +18,10 @@ import com.snaketracker.app.data.Repository
 import com.snaketracker.app.data.backup.BackupExportException
 import com.snaketracker.app.data.backup.BackupExportFailureReason
 import com.snaketracker.app.data.backup.BackupExportGateway
+import com.snaketracker.app.data.backup.BackupImportGateway
+import com.snaketracker.app.data.backup.BackupJsonSink
 import com.snaketracker.app.data.backup.BackupJsonSource
+import com.snaketracker.app.data.backup.ImportSummary
 import com.snaketracker.app.ui.screens.BackupDestinationPicker
 import com.snaketracker.app.ui.screens.SettingsScreen
 import com.snaketracker.app.ui.theme.SnakeTrackerTheme
@@ -245,9 +248,18 @@ class SettingsBackupExportTest {
         backupJsonSource = object : BackupJsonSource {
             override suspend fun exportAll(): String = """{"schemaVersion":1,"data":{}}"""
         },
+        backupJsonSink = object : BackupJsonSink {
+            override suspend fun importJson(json: String): ImportSummary =
+                throw UnsupportedOperationException("export tests never import")
+        },
         backupExportGateway = object : BackupExportGateway {
             override suspend fun save(destination: Uri, json: String): String = saveWith(json)
-        }
+        },
+        backupImportGateway = object : BackupImportGateway {
+            override suspend fun read(source: Uri): String =
+                throw UnsupportedOperationException("export tests never read")
+        },
+        rearmReminders = { }
     )
 
     /** Stands in for a SAF result URI; the fake gateway never dereferences it. */

@@ -5,8 +5,11 @@ import android.net.Uri
 import com.snaketracker.app.data.backup.BackupExportException
 import com.snaketracker.app.data.backup.BackupExportFailureReason
 import com.snaketracker.app.data.backup.BackupExportGateway
+import com.snaketracker.app.data.backup.BackupImportGateway
+import com.snaketracker.app.data.backup.BackupJsonSink
 import com.snaketracker.app.data.backup.BackupJsonSource
-import com.snaketracker.app.testing.viewModelTestRepository
+import com.snaketracker.app.data.backup.ImportSummary
+import com.snaketracker.app.data.fakeTestRepository
 import com.snaketracker.app.ui.model.BackupExportState
 import java.io.IOException
 import kotlinx.coroutines.CompletableDeferred
@@ -39,6 +42,18 @@ class SnakeViewModelBackupExportTest {
 
     private class FakeJsonSource(private val json: String) : BackupJsonSource {
         override suspend fun exportAll(): String = json
+    }
+
+    // Import-side collaborators the export suite never reaches: failing
+    // stubs keep the shared ViewModel constructor honest.
+    private object UnusedImportSink : BackupJsonSink {
+        override suspend fun importJson(json: String): ImportSummary =
+            throw UnsupportedOperationException("export tests never import")
+    }
+
+    private object UnusedImportGateway : BackupImportGateway {
+        override suspend fun read(source: Uri): String =
+            throw UnsupportedOperationException("export tests never read")
     }
 
     private class RecordingGateway(private val displayName: String) : BackupExportGateway {
@@ -103,11 +118,14 @@ class SnakeViewModelBackupExportTest {
         // must never reach the dialog (issue #26 WB3).
         val rawMessage = "SQLiteLog: (14) cannot open /data/user/0/com.snaketracker.app/databases/snake.db"
         val viewModel = SnakeViewModel(
-            repository = viewModelTestRepository(),
+            repository = fakeTestRepository(),
             backupJsonSource = object : BackupJsonSource {
                 override suspend fun exportAll(): String = throw IllegalStateException(rawMessage)
             },
-            backupExportGateway = RecordingGateway(savedFileName)
+            backupJsonSink = UnusedImportSink,
+            backupExportGateway = RecordingGateway(savedFileName),
+            backupImportGateway = UnusedImportGateway,
+            rearmReminders = {}
         )
 
         viewModel.exportBackup(TestUri)
@@ -199,9 +217,12 @@ class SnakeViewModelBackupExportTest {
     }
 
     private fun viewModelWith(gateway: BackupExportGateway) = SnakeViewModel(
-        repository = viewModelTestRepository(),
+        repository = fakeTestRepository(),
         backupJsonSource = FakeJsonSource(backupJson),
-        backupExportGateway = gateway
+        backupJsonSink = UnusedImportSink,
+        backupExportGateway = gateway,
+        backupImportGateway = UnusedImportGateway,
+        rearmReminders = {}
     )
 
     @Test
