@@ -17,6 +17,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.snaketracker.app.navigation.SnakeTrackerNavGraph
 import com.snaketracker.app.reminders.ExactAlarmPromptPreferences
+import com.snaketracker.app.reminders.ReminderArming
 import com.snaketracker.app.reminders.exactPermissionHeld
 import com.snaketracker.app.reminders.shouldShowExactAlarmPrompt
 import com.snaketracker.app.ui.screens.ExactAlarmPromptDialog
@@ -56,7 +57,17 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             SnakeTrackerTheme {
-                val viewModel: SnakeViewModel = viewModel(factory = ViewModelFactory(app.repository))
+                val viewModel: SnakeViewModel = viewModel(
+                    factory = ViewModelFactory(
+                        app.repository,
+                        app.backupRepository,
+                        app.backupImportGateway,
+                        // Issue #28 WB5: after a successful import the alarm is
+                        // recomputed from the new data through the same reminder
+                        // reschedule entry point the launch-time receivers use.
+                        rearmReminders = { ReminderArming.refresh(app) }
+                    )
+                )
                 SnakeTrackerNavGraph(viewModel = viewModel)
 
                 if (showExactAlarmPrompt) {

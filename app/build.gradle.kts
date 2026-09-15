@@ -31,6 +31,8 @@ android {
 
     buildFeatures {
         compose = true
+        // BackupRepository stamps the backup document with versionName.
+        buildConfig = true
     }
 
     packaging {

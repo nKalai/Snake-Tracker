@@ -21,4 +21,44 @@
 
     <!-- Settings screen. -->
     <string name="settings_title">Settings</string>
+
+    <!-- Backup import (Settings -> SAF picker -> confirm -> result dialog). -->
+    <string name="settings_import_backup">Import backup</string>
+    <string name="settings_import_backup_summary">Replace all tracker data from a JSON backup file</string>
+    <string name="backup_import_confirm_title">Replace everything with this backup?</string>
+    <string name="backup_import_confirm_message">Importing replaces all current data. Every snake, feeding, shed, weight, and food stock entry on this device will be deleted and restored from the backup file.</string>
+    <string name="backup_import_confirm_import">Import</string>
+    <string name="backup_import_confirm_cancel">Cancel</string>
+    <string name="backup_import_success_title">Backup imported</string>
+    <string name="backup_import_failure_title">Import failed</string>
+    <string name="backup_import_dismiss">OK</string>
+
+    <!-- One message per import failure reason (issue #28 WB4). -->
+    <string name="backup_import_failure_not_backup">This file is not a Snake Tracker backup.</string>
+    <string name="backup_import_failure_newer_version">This backup was made by a newer version of Snake Tracker. Update the app before importing it.</string>
+    <string name="backup_import_failure_orphan_rows">This backup contains records that belong to a snake the file does not include. It is not a complete backup.</string>
+    <string name="backup_import_failure_invalid_rows">This backup contains records with invalid ids and cannot be imported.</string>
+    <string name="backup_import_failure_unreadable">The selected file could not be read. Choose another file and try again.</string>
+    <string name="backup_import_failure_database">The import failed while writing to the database. Your existing data was left untouched.</string>
+
+    <plurals name="import_count_snakes">
+        <item quantity="one">%1$d snake</item>
+        <item quantity="other">%1$d snakes</item>
+    </plurals>
+    <plurals name="import_count_feedings">
+        <item quantity="one">%1$d feeding</item>
+        <item quantity="other">%1$d feedings</item>
+    </plurals>
+    <plurals name="import_count_sheds">
+        <item quantity="one">%1$d shed</item>
+        <item quantity="other">%1$d sheds</item>
+    </plurals>
+    <plurals name="import_count_weights">
+        <item quantity="one">%1$d weight</item>
+        <item quantity="other">%1$d weights</item>
+    </plurals>
+    <plurals name="import_count_food_stock">
+        <item quantity="one">%1$d food stock item</item>
+        <item quantity="other">%1$d food stock items</item>
+    </plurals>
 </resources>
