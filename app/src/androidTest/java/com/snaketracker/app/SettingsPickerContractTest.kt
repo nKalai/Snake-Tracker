@@ -10,12 +10,8 @@ import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.snaketracker.app.data.AppDatabase
-import com.snaketracker.app.data.Repository
-import com.snaketracker.app.data.backup.BackupExportGateway
-import com.snaketracker.app.data.backup.BackupImportGateway
-import com.snaketracker.app.data.backup.BackupJsonSink
-import com.snaketracker.app.data.backup.BackupJsonSource
 import com.snaketracker.app.data.backup.ImportSummary
+import com.snaketracker.app.testing.SettingsBackupHarness
 import com.snaketracker.app.ui.screens.SettingsScreen
 import com.snaketracker.app.ui.theme.SnakeTrackerTheme
 import com.snaketracker.app.ui.viewmodel.SnakeViewModel
@@ -50,24 +46,12 @@ class SettingsPickerContractTest {
         db = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java)
             .allowMainThreadQueries()
             .build()
-        viewModel = SnakeViewModel(
-            repository = Repository(db),
-            backupJsonSource = object : BackupJsonSource {
-                override suspend fun exportAll(): String =
-                    throw UnsupportedOperationException("picker contract never exports")
-            },
-            backupJsonSink = object : BackupJsonSink {
-                override suspend fun importJson(json: String): ImportSummary =
-                    ImportSummary.Success(0, 0, 0, 0, 0)
-            },
-            backupExportGateway = object : BackupExportGateway {
-                override suspend fun save(destination: Uri, json: String): String =
-                    throw UnsupportedOperationException("picker contract never writes")
-            },
-            backupImportGateway = object : BackupImportGateway {
-                override suspend fun read(source: Uri): String = ""
-            },
-            rearmReminders = { }
+        // Only the launched Intent is under test; the seams behind it stay
+        // unused defaults from the shared harness.
+        viewModel = SettingsBackupHarness.viewModel(
+            db = db,
+            backup = SettingsBackupHarness.engineReturning(ImportSummary.Success(0, 0, 0, 0, 0)),
+            importGateway = SettingsBackupHarness.importGatewayReading()
         )
     }
 

@@ -43,9 +43,13 @@ android {
 
     testOptions {
         unitTests {
-            // The stub android.jar returns defaults instead of throwing
-            // "not mocked", so android.util.Log calls (e.g. backup failure
-            // logging in SnakeViewModel) keep JVM tests runnable.
+            // Accepted module-wide exception (PR #34 review 🟡): the stub
+            // android.jar returns 0/null instead of throwing "not mocked".
+            // The backup feature no longer relies on it - its failure
+            // logging goes through the injected DefaultBackupCoordinator
+            // .logFailure seam, which JVM tests replace with a recorder -
+            // so anything here still needing the flag is a seam to name,
+            // not a behavior to leave silently returning defaults.
             isReturnDefaultValues = true
         }
     }

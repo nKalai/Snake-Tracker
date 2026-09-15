@@ -10,9 +10,12 @@ import com.snaketracker.app.data.backup.BackupImportContentGateway
 import com.snaketracker.app.data.backup.BackupImportGateway
 import com.snaketracker.app.data.backup.BackupRepository
 import com.snaketracker.app.reminders.NotificationHelper
+import com.snaketracker.app.reminders.ReminderArming
 import com.snaketracker.app.reminders.ReminderScheduler
 import com.snaketracker.app.reminders.nextAlarmAtFlow
 import com.snaketracker.app.reminders.restartOnFailure
+import com.snaketracker.app.ui.viewmodel.BackupCoordinator
+import com.snaketracker.app.ui.viewmodel.ViewModelFactory
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -33,6 +36,23 @@ class SnakeTrackerApp : Application() {
     }
     val backupImportGateway: BackupImportGateway by lazy {
         BackupImportContentGateway(contentResolver)
+    }
+
+    // The single backup collaborator every dialog goes through (PR #34
+    // review 🔴). The re-arm hook is the reschedule-only entry (#28 WB5):
+    // the same next-instant + re-arm pair the launch-time observer uses,
+    // with no due-now notification pass - importing is not a due-time
+    // event. Off-main scheduling is the coordinator's policy.
+    val backupCoordinator: BackupCoordinator by lazy {
+        createBackupCoordinator(
+            backupEngine = backupRepository,
+            exportGateway = backupExportGateway,
+            importGateway = backupImportGateway,
+            rearmReminders = { ReminderArming.reschedule(this) }
+        )
+    }
+    val viewModelFactory: ViewModelFactory by lazy {
+        createViewModelFactory(repository, backupCoordinator)
     }
 
     // Last-resort net: nothing launched on this scope may take the process down

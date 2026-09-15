@@ -12,18 +12,15 @@ import androidx.room.Room
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.core.app.ApplicationProvider
 import com.snaketracker.app.data.AppDatabase
-import com.snaketracker.app.data.Repository
-import com.snaketracker.app.data.backup.BackupExportGateway
+import com.snaketracker.app.data.backup.BackupEngine
 import com.snaketracker.app.data.backup.BackupImportGateway
-import com.snaketracker.app.data.backup.BackupJsonSink
-import com.snaketracker.app.data.backup.BackupJsonSource
 import com.snaketracker.app.data.backup.ImportFailure
 import com.snaketracker.app.data.backup.ImportSummary
+import com.snaketracker.app.testing.SettingsBackupHarness
 import com.snaketracker.app.ui.screens.BackupSourcePicker
 import com.snaketracker.app.ui.screens.SettingsScreen
 import com.snaketracker.app.ui.theme.SnakeTrackerTheme
 import com.snaketracker.app.ui.viewmodel.SnakeViewModel
-import java.io.File
 import java.io.IOException
 import java.util.concurrent.atomic.AtomicInteger
 import org.junit.After
@@ -80,35 +77,20 @@ class SettingsBackupImportTest {
 
     /** Stand-in harness: counts every seam call the dialogs are forbidden to skip. */
     private inner class Harness(
-        gateway: BackupImportGateway,
-        sink: BackupJsonSink
+        importGateway: BackupImportGateway,
+        engine: BackupEngine
     ) {
         val rearmCalls = AtomicInteger(0)
-        val viewModel = SnakeViewModel(
-            repository = Repository(db),
-            backupJsonSource = UnusedExportSource,
-            backupJsonSink = sink,
-            backupExportGateway = UnusedExportGateway,
-            backupImportGateway = gateway,
-            rearmReminders = { rearmCalls.incrementAndGet() }
+        val viewModel = SettingsBackupHarness.viewModel(
+            db = db,
+            backup = engine,
+            importGateway = importGateway,
+            onRearm = { rearmCalls.incrementAndGet() }
         )
     }
 
-    private fun gatewayReturning(json: String): BackupImportGateway =
-        object : BackupImportGateway {
-            override suspend fun read(source: Uri): String = json
-        }
-
-    private fun sinkReturning(result: ImportSummary): BackupJsonSink =
-        object : BackupJsonSink {
-            override suspend fun importJson(json: String): ImportSummary = result
-        }
-
-    private fun ioFailingGateway(): BackupImportGateway =
-        object : BackupImportGateway {
-            override suspend fun read(source: Uri): String =
-                throw IOException("The chosen file could not be opened for reading.")
-        }
+    private fun engineReturning(result: ImportSummary): BackupEngine =
+        SettingsBackupHarness.engineReturning(result)
 
     /** Picker stand-in; [echoPickedFile] makes "pick" immediately act like a completed pick. */
     private class TestPicker(private val echoPickedFile: () -> Unit) : BackupSourcePicker {
@@ -127,12 +109,11 @@ class SettingsBackupImportTest {
     }
 
     /** Stands in for a SAF result URI; the fakes never dereference it. */
-    private fun pickedUri(): Uri =
-        Uri.fromFile(File(ApplicationProvider.getApplicationContext<Context>().cacheDir, "backup.json"))
+    private fun pickedUri(): Uri = SettingsBackupHarness.pickedUri()
 
     @Test
     fun importBackupRow_isPresentOnSettings() {
-        viewModel = Harness(gatewayReturning(backupJson), sinkReturning(EMPTY_SUCCESS)).viewModel
+        viewModel = Harness(SettingsBackupHarness.importGatewayReading(backupJson), engineReturning(EMPTY_SUCCESS)).viewModel
         showSettings(picker = BackupSourcePicker { })
 
         composeRule.onNodeWithTag("import_backup_row").assertIsDisplayed()
@@ -145,14 +126,19 @@ class SettingsBackupImportTest {
     @Test
     fun pickingAFile_showsReplaceEverythingConfirmation_andCancelImportsNothing() {
         var gatewayCalls = 0
-        var sinkCalls = 0
+        var engineCalls = 0
         val gateway = object : BackupImportGateway {
             override suspend fun read(source: Uri): String { gatewayCalls += 1; return backupJson }
         }
-        val sink = object : BackupJsonSink {
-            override suspend fun importJson(json: String): ImportSummary { sinkCalls += 1; return EMPTY_SUCCESS }
+        val engine = object : BackupEngine {
+            override suspend fun exportAll(): String =
+                throw UnsupportedOperationException("import tests never export")
+            override suspend fun importJson(json: String): ImportSummary {
+                engineCalls += 1
+                return EMPTY_SUCCESS
+            }
         }
-        val harness = Harness(gateway, sink)
+        val harness = Harness(gateway, engine)
         viewModel = harness.viewModel
         val picker = TestPicker { viewModel.requestBackupImport(pickedUri()) }
         showSettings(picker)
@@ -171,7 +157,7 @@ class SettingsBackupImportTest {
         composeRule.onNodeWithTag("backup_import_confirm_title").assertDoesNotExist()
         // Dismiss = the engine is never reached: no read, no import, no re-arm.
         assertEquals(0, gatewayCalls)
-        assertEquals(0, sinkCalls)
+        assertEquals(0, engineCalls)
         assertEquals(0, harness.rearmCalls.get())
         assertEquals(null, viewModel.backupImportState.value)
     }
@@ -180,7 +166,7 @@ class SettingsBackupImportTest {
     @Test
     fun confirmedImport_resultDialogListsCounts_andRearmsReminderOnce() {
         val counts = ImportSummary.Success(snakes = 2, feedings = 5, sheds = 1, weights = 3, foodStock = 4)
-        val harness = Harness(gatewayReturning(backupJson), sinkReturning(counts))
+        val harness = Harness(SettingsBackupHarness.importGatewayReading(backupJson), engineReturning(counts))
         viewModel = harness.viewModel
         val picker = TestPicker { viewModel.requestBackupImport(pickedUri()) }
         showSettings(picker)
@@ -218,7 +204,7 @@ class SettingsBackupImportTest {
     /** WB4: an unreadable file names itself as the reason, with no engine involvement. */
     @Test
     fun unreadableFile_resultDialogNamesUnreadable_andRearmsNothing() {
-        val harness = Harness(ioFailingGateway(), sinkReturning(EMPTY_SUCCESS))
+        val harness = Harness(SettingsBackupHarness.importGatewayFailingWith(IOException("The chosen file could not be opened for reading.")), engineReturning(EMPTY_SUCCESS))
         viewModel = harness.viewModel
         val picker = TestPicker { viewModel.requestBackupImport(pickedUri()) }
         showSettings(picker)
@@ -235,11 +221,13 @@ class SettingsBackupImportTest {
     /** WB4: a validated file that fails mid-insert names the database as the reason. */
     @Test
     fun databaseFailure_resultDialogNamesDatabase_andRearmsNothing() {
-        val throwingSink = object : BackupJsonSink {
+        val throwingEngine = object : BackupEngine {
+            override suspend fun exportAll(): String =
+                throw UnsupportedOperationException("import tests never export")
             override suspend fun importJson(json: String): ImportSummary =
                 throw IllegalStateException("SQLITE_BUSY")
         }
-        val harness = Harness(gatewayReturning(backupJson), throwingSink)
+        val harness = Harness(SettingsBackupHarness.importGatewayReading(backupJson), throwingEngine)
         viewModel = harness.viewModel
         val picker = TestPicker { viewModel.requestBackupImport(pickedUri()) }
         showSettings(picker)
@@ -288,8 +276,8 @@ class SettingsBackupImportTest {
 
     private fun resultDialogForRejection(reason: ImportFailure, messageRes: Int) {
         val harness = Harness(
-            gatewayReturning(backupJson),
-            sinkReturning(ImportSummary.Failure(reason))
+            SettingsBackupHarness.importGatewayReading(backupJson),
+            engineReturning(ImportSummary.Failure(reason))
         )
         viewModel = harness.viewModel
         val picker = TestPicker { viewModel.requestBackupImport(pickedUri()) }
@@ -319,16 +307,5 @@ class SettingsBackupImportTest {
 
     private companion object {
         val EMPTY_SUCCESS = ImportSummary.Success(0, 0, 0, 0, 0)
-
-        // Export-side collaborators the import suite never reaches: failing
-        // stubs keep the shared ViewModel constructor honest.
-        val UnusedExportSource = object : BackupJsonSource {
-            override suspend fun exportAll(): String =
-                throw UnsupportedOperationException("import tests never export")
-        }
-        val UnusedExportGateway = object : BackupExportGateway {
-            override suspend fun save(destination: Uri, json: String): String =
-                throw UnsupportedOperationException("import tests never write")
-        }
     }
 }
