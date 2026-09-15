@@ -38,11 +38,12 @@ class BackupImportMessageForTest {
             R.string.backup_import_failure_orphan_rows,
             R.string.backup_import_failure_invalid_rows,
             R.string.backup_import_failure_unreadable,
+            R.string.backup_import_failure_too_large,
             R.string.backup_import_failure_database
         )
         for (id in ids) {
             assertNotEquals("resource id did not resolve", 0, id)
         }
-        assertEquals(6, ids.distinct().size)
+        assertEquals(7, ids.distinct().size)
     }
 }

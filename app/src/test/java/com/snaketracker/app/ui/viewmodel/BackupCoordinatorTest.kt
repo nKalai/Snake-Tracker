@@ -8,6 +8,8 @@ import com.snaketracker.app.data.backup.BackupExportException
 import com.snaketracker.app.data.backup.BackupExportFailureReason
 import com.snaketracker.app.data.backup.BackupExportGateway
 import com.snaketracker.app.data.backup.BackupImportGateway
+import com.snaketracker.app.data.backup.BackupImportRejectException
+import com.snaketracker.app.data.backup.BackupImportRejectReason
 import com.snaketracker.app.data.backup.BackupTable
 import com.snaketracker.app.data.backup.ImportFailure
 import com.snaketracker.app.data.backup.ImportSummary
@@ -290,6 +292,29 @@ class BackupCoordinatorTest {
         assertEquals(0, engine.importCalls)
         assertEquals(0, rearm.calls)
         assertEquals(1, log.entries.size)
+    }
+
+    /**
+     * A source the gateway sizes above the backup bound (PR #34 review 🟡)
+     * is its own typed rejection - and, like every read failure, the
+     * engine never runs and the device stays untouched.
+     */
+    @Test
+    fun `oversized source maps to its own too-large message and never reaches the engine`() = runOnMain {
+        val engine = FakeEngine(result = counts)
+        val gateway = FakeImportGateway {
+            throw BackupImportRejectException(
+                BackupImportRejectReason.FILE_TOO_LARGE,
+                "provider reported 64 MiB"
+            )
+        }
+        val coordinator = copyWith(engine = engine, importGateway = gateway)
+
+        val state = coordinator.importBackup(source)
+
+        assertEquals(BackupImportState.Failure(R.string.backup_import_failure_too_large), state)
+        assertEquals(0, engine.importCalls)
+        assertEquals(0, rearm.calls)
     }
 
     @Test

@@ -51,6 +51,7 @@
     <string name="backup_import_failure_orphan_rows">This backup contains records that belong to a snake the file does not include. It is not a complete backup.</string>
     <string name="backup_import_failure_invalid_rows">This backup contains records with invalid ids and cannot be imported.</string>
     <string name="backup_import_failure_unreadable">The selected file could not be read. Choose another file and try again.</string>
+    <string name="backup_import_failure_too_large">This file is far too large to be a Snake Tracker backup. Choose a JSON backup file.</string>
     <string name="backup_import_failure_database">The import failed while writing to the database. Your existing data was left untouched.</string>
 
     <plurals name="import_count_snakes">
