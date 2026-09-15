@@ -8,11 +8,13 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -22,26 +24,29 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.snaketracker.app.R
 import com.snaketracker.app.data.backup.BackupExportFailureReason
 import com.snaketracker.app.ui.model.BackupExportState
+import com.snaketracker.app.ui.model.BackupImportState
 import com.snaketracker.app.ui.viewmodel.SnakeViewModel
 import java.time.LocalDate
 
 /**
- * Top-level Settings screen. Its first capability is the JSON backup export
- * (issue #26): the row launches the Storage Access Framework create-document
- * picker with a date-stamped suggested name, and the ViewModel's export
- * result is reported in a dialog.
+ * Top-level Settings screen. It carries the JSON backup pair: the export
+ * row (issue #26) launches the SAF create-document picker with a
+ * date-stamped suggested name, and the import row (issue #28) launches the
+ * SAF open-document picker for JSON files, gates the replace-everything
+ * run behind a destructive-worded confirmation dialog, and reports each
+ * outcome in a result dialog.
  *
- * The picker lives behind [BackupDestinationPicker] so instrumented tests
- * can drive the result dialog without the system file UI; the real default
- * is the SAF contract wired straight into [SnakeViewModel.exportBackup].
- *
- * INSERTION POINT (import/export): the import action (issue #28) joins the
- * export row in the `Scaffold` body below.
+ * Both pickers live behind their small interfaces
+ * ([BackupDestinationPicker], [BackupSourcePicker]) so instrumented tests
+ * can drive the dialogs without the system file UI; the real defaults are
+ * the SAF contracts wired straight into [SnakeViewModel.exportBackup] and
+ * [SnakeViewModel.requestBackupImport].
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -49,9 +54,13 @@ fun SettingsScreen(
     viewModel: SnakeViewModel,
     modifier: Modifier = Modifier,
     backupDestinationPicker: BackupDestinationPicker =
-        rememberCreateDocumentPicker { uri -> if (uri != null) viewModel.exportBackup(uri) }
+        rememberCreateDocumentPicker { uri -> if (uri != null) viewModel.exportBackup(uri) },
+    backupSourcePicker: BackupSourcePicker =
+        rememberOpenDocumentPicker { uri -> if (uri != null) viewModel.requestBackupImport(uri) }
 ) {
     val exportState by viewModel.backupExportState.collectAsStateWithLifecycle()
+    val pendingImportUri by viewModel.pendingImportUri.collectAsStateWithLifecycle()
+    val importState by viewModel.backupImportState.collectAsStateWithLifecycle()
 
     Scaffold(
         modifier = modifier,
@@ -84,7 +93,29 @@ fun SettingsScreen(
                         backupDestinationPicker.launch(backupFileName(LocalDate.now()))
                     }
             )
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_import_backup)) },
+                supportingContent = {
+                    Text(stringResource(R.string.settings_import_backup_summary))
+                },
+                leadingContent = {
+                    Icon(
+                        imageVector = Icons.Default.Download,
+                        contentDescription = null
+                    )
+                },
+                modifier = Modifier
+                    .testTag("import_backup_row")
+                    .clickable { backupSourcePicker.pick() }
+            )
         }
+    }
+
+    if (pendingImportUri != null) {
+        BackupImportConfirmDialog(
+            onConfirm = viewModel::confirmBackupImport,
+            onDismiss = viewModel::cancelBackupImport
+        )
     }
 
     val state = exportState
@@ -92,6 +123,14 @@ fun SettingsScreen(
         BackupExportResultDialog(
             state = state,
             onDismiss = viewModel::dismissBackupExport
+        )
+    }
+
+    val importResult = importState
+    if (importResult != null) {
+        BackupImportResultDialog(
+            state = importResult,
+            onDismiss = viewModel::dismissBackupImport
         )
     }
 }
@@ -138,6 +177,90 @@ private fun BackupExportResultDialog(
 }
 
 /**
+ * The replace-everything warning shown between picking a file and running
+ * the import (issue #28 WB2): destructive-worded, and every path out of it
+ * is explicit — [onDismiss] (button or tap-outside) imports nothing.
+ */
+@Composable
+private fun BackupImportConfirmDialog(
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                stringResource(R.string.backup_import_confirm_title),
+                modifier = Modifier.testTag("backup_import_confirm_title")
+            )
+        },
+        text = { Text(stringResource(R.string.backup_import_confirm_message)) },
+        confirmButton = {
+            TextButton(onClick = onConfirm, modifier = Modifier.testTag("backup_import_confirm_yes")) {
+                Text(
+                    stringResource(R.string.backup_import_confirm_import),
+                    color = MaterialTheme.colorScheme.error
+                )
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss, modifier = Modifier.testTag("backup_import_confirm_cancel")) {
+                Text(stringResource(R.string.backup_import_confirm_cancel))
+            }
+        }
+    )
+}
+
+/**
+ * Outcome dialog for a backup import: success lists the per-table imported
+ * counts, failure names the reason (issue #28 WB4).
+ */
+@Composable
+private fun BackupImportResultDialog(
+    state: BackupImportState,
+    onDismiss: () -> Unit
+) {
+    val title: String
+    val message: String
+    when (state) {
+        is BackupImportState.Success -> {
+            title = stringResource(R.string.backup_import_success_title)
+            val counts = state.counts
+            message = listOf(
+                pluralStringResource(R.plurals.import_count_snakes, counts.snakes, counts.snakes),
+                pluralStringResource(R.plurals.import_count_feedings, counts.feedings, counts.feedings),
+                pluralStringResource(R.plurals.import_count_sheds, counts.sheds, counts.sheds),
+                pluralStringResource(R.plurals.import_count_weights, counts.weights, counts.weights),
+                pluralStringResource(
+                    R.plurals.import_count_food_stock,
+                    counts.foodStock,
+                    counts.foodStock
+                )
+            ).joinToString("\n")
+        }
+
+        is BackupImportState.Failure -> {
+            title = stringResource(R.string.backup_import_failure_title)
+            message = stringResource(state.messageRes)
+        }
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(title, modifier = Modifier.testTag("backup_import_dialog_title"))
+        },
+        text = {
+            Text(message, modifier = Modifier.testTag("backup_import_message"))
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss, modifier = Modifier.testTag("backup_import_dismiss")) {
+                Text(stringResource(R.string.backup_import_dismiss))
+            }
+        }
+    )
+}
+
+/**
  * The suggested name for a backup document: `snake-tracker-backup-<yyyy-MM-dd>.json`,
  * dated with the device's local calendar day ([LocalDate.toString] is ISO
  * `yyyy-MM-dd`). The picker lets the user change it; the gateway then reports
@@ -167,4 +290,33 @@ private fun rememberCreateDocumentPicker(
     }
 }
 
+/**
+ * Launches the picker for the JSON backup file the user wants to import.
+ * The JSON restriction is the capability itself, so it lives inside the
+ * implementations — callers cannot pick a different filter, and the fake
+ * has nothing to echo.
+ */
+fun interface BackupSourcePicker {
+    fun pick()
+}
+
+/**
+ * Production [BackupSourcePicker]: `ACTION_OPEN_DOCUMENT` for JSON via
+ * [ActivityResultContracts.OpenDocument]; the user-chosen URI (or null on
+ * cancel) is handed to [onDocumentPicked].
+ */
+@Composable
+private fun rememberOpenDocumentPicker(
+    onDocumentPicked: (Uri?) -> Unit
+): BackupSourcePicker {
+    val launcher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri -> onDocumentPicked(uri) }
+    return remember(launcher) {
+        BackupSourcePicker { launcher.launch(JSON_MIME_TYPES) }
+    }
+}
+
 private const val JSON_MIME_TYPE = "application/json"
+
+private val JSON_MIME_TYPES = arrayOf("application/json")

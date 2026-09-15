@@ -1,11 +1,8 @@
-package com.snaketracker.app.testing
+package com.snaketracker.app.data
 
-import android.net.Uri
 import androidx.room.DatabaseConfiguration
 import androidx.room.InvalidationTracker
 import androidx.sqlite.db.SupportSQLiteOpenHelper
-import com.snaketracker.app.data.AppDatabase
-import com.snaketracker.app.data.Repository
 import com.snaketracker.app.data.dao.FeedingDao
 import com.snaketracker.app.data.dao.FoodStockDao
 import com.snaketracker.app.data.dao.LastFeedingInfo
@@ -21,22 +18,17 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 
 /**
- * Shared JVM stand-ins that let ViewModel unit tests construct
- * [com.snaketracker.app.ui.viewmodel.SnakeViewModel] without a Room database
- * or an Android runtime: the database-backed flows are never collected in
- * these tests, so empty flows / unused DAO methods are all the ViewModel
- * ever observes. Lives here (not next to one feature's tests) because every
- * ViewModel-behavior test suite - the export slice today, the import slice
- * (#28) tomorrow - needs the same fakes.
- *
- * The single app-wide `SnakeViewModel` is a deliberate convention (one
- * ViewModel owns the whole Repository surface); these doubles support that
- * convention rather than working around it.
+ * Shared JVM fixture: a [Repository] over a [AppDatabase] stub whose DAOs
+ * create their flows eagerly and whose mutating methods fail loudly. Lets
+ * ViewModel-level tests (backup import, later export) construct the real
+ * [com.snaketracker.app.data.Repository] without a Room database or an
+ * Android runtime — no assertion ever reads or writes these DAOs, so empty
+ * flows are all the production code under test ever observes. Add new DAO
+ * methods here once instead of per test file.
  */
+internal fun fakeTestRepository(): Repository = Repository(FakeAppDatabase)
 
-internal fun viewModelTestRepository(): Repository = Repository(FakeAppDatabase)
-
-private object FakeAppDatabase : AppDatabase() {
+internal object FakeAppDatabase : AppDatabase() {
     override fun snakeDao(): SnakeDao = FakeSnakeDao
     override fun feedingDao(): FeedingDao = FakeFeedingDao
     override fun shedDao(): ShedDao = FakeShedDao
@@ -53,50 +45,55 @@ private object FakeAppDatabase : AppDatabase() {
     override fun clearAllTables() = unsupported()
 }
 
-private fun unsupported(): Nothing = throw UnsupportedOperationException("unused in JVM tests")
+internal fun unsupported(): Nothing = throw UnsupportedOperationException("unused in JVM tests")
 
-private object FakeSnakeDao : SnakeDao {
+internal object FakeSnakeDao : SnakeDao {
     override fun getAll(): Flow<List<Snake>> = flowOf(emptyList())
     override fun getById(id: Long): Flow<Snake?> = flowOf(null)
     override suspend fun getAllWithRemindersEnabled(): List<Snake> = emptyList()
     override suspend fun getAllOnce(): List<Snake> = emptyList()
     override suspend fun insert(snake: Snake): Long = unsupported()
+    override suspend fun deleteAll() = unsupported()
     override suspend fun update(snake: Snake) = unsupported()
     override suspend fun delete(snake: Snake) = unsupported()
 }
 
-private object FakeFeedingDao : FeedingDao {
+internal object FakeFeedingDao : FeedingDao {
     override fun getForSnake(snakeId: Long): Flow<List<FeedingEvent>> = flowOf(emptyList())
     override suspend fun getLastForSnake(snakeId: Long): FeedingEvent? = null
     override fun getLastFeedingPerSnake(): Flow<List<LastFeedingInfo>> = flowOf(emptyList())
     override suspend fun getLastFeedingPerSnakeOnce(): List<LastFeedingInfo> = emptyList()
     override suspend fun getAllOnce(): List<FeedingEvent> = emptyList()
     override suspend fun insert(event: FeedingEvent): Long = unsupported()
+    override suspend fun deleteAll() = unsupported()
     override suspend fun update(event: FeedingEvent) = unsupported()
     override suspend fun delete(event: FeedingEvent) = unsupported()
 }
 
-private object FakeShedDao : ShedDao {
+internal object FakeShedDao : ShedDao {
     override fun getForSnake(snakeId: Long): Flow<List<ShedEvent>> = flowOf(emptyList())
     override suspend fun getAllOnce(): List<ShedEvent> = emptyList()
     override suspend fun insert(event: ShedEvent): Long = unsupported()
+    override suspend fun deleteAll() = unsupported()
     override suspend fun update(event: ShedEvent) = unsupported()
     override suspend fun delete(event: ShedEvent) = unsupported()
 }
 
-private object FakeWeightDao : WeightDao {
+internal object FakeWeightDao : WeightDao {
     override fun getForSnake(snakeId: Long): Flow<List<WeightEntry>> = flowOf(emptyList())
     override suspend fun getAllOnce(): List<WeightEntry> = emptyList()
     override suspend fun insert(entry: WeightEntry): Long = unsupported()
+    override suspend fun deleteAll() = unsupported()
     override suspend fun update(entry: WeightEntry) = unsupported()
     override suspend fun delete(entry: WeightEntry) = unsupported()
 }
 
-private object FakeFoodStockDao : FoodStockDao {
+internal object FakeFoodStockDao : FoodStockDao {
     override fun getAll(): Flow<List<FoodStockItem>> = flowOf(emptyList())
     override suspend fun getById(id: Long): FoodStockItem? = null
     override suspend fun getAllOnce(): List<FoodStockItem> = emptyList()
     override suspend fun insert(item: FoodStockItem): Long = unsupported()
+    override suspend fun deleteAll() = unsupported()
     override suspend fun update(item: FoodStockItem) = unsupported()
     override suspend fun delete(item: FoodStockItem) = unsupported()
 }

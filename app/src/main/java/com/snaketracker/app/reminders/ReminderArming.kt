@@ -25,6 +25,21 @@ internal fun notifyDueSnakesAndReschedule(
 }
 
 /**
+ * The reschedule-only counterpart to [notifyDueSnakesAndReschedule]: moves the
+ * single alarm to the plan's [ReminderPlan.nextAlarmAt] (or cancels it when
+ * there is none) and posts no due-now notification - by construction this
+ * entry has no notify channel, so a bulk data change such as a backup import
+ * can never burst a feeding-due notification per overdue snake (issue #28
+ * WB5).
+ */
+internal fun rescheduleToNextAlarm(
+    plan: ReminderPlan,
+    reschedule: (Instant?) -> Unit
+) {
+    reschedule(plan.nextAlarmAt)
+}
+
+/**
  * Recomputes the reminder plan from the Repository snapshot, posts one
  * notification per due-now snake, and re-arms the single alarm (or cancels
  * everything when there is none). Sharing one sequence between the alarm-fire
@@ -56,5 +71,25 @@ object ReminderArming {
             },
             reschedule = { at -> ReminderScheduler.reschedule(appContext, at) }
         )
+    }
+
+    /**
+     * The reschedule-only entry: recomputes the plan from the current data and
+     * moves the single alarm through [rescheduleToNextAlarm] without [refresh]
+     * 's due-now notification pass. A successful backup import re-arms here
+     * (issue #28 WB5) - replacing the data is not a due-time event, so it must
+     * not notify; the caller runs this off the main thread.
+     */
+    suspend fun reschedule(context: Context) {
+        val appContext = context.applicationContext
+        val repository = Repository.getInstance(AppDatabase.getInstance(appContext))
+        val plan = ReminderPlanner.plan(
+            candidates = repository.getReminderSnapshot(),
+            now = Instant.now(),
+            zone = ZoneId.systemDefault()
+        )
+        rescheduleToNextAlarm(plan) { at ->
+            ReminderScheduler.reschedule(appContext, at)
+        }
     }
 }
