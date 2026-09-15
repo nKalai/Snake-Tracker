@@ -28,6 +28,10 @@ interface FeedingDao {
     @Insert
     suspend fun insert(event: FeedingEvent): Long
 
+    // Whole-table wipe; used only inside the import replace-everything transaction.
+    @Query("DELETE FROM feeding_events")
+    suspend fun deleteAll()
+
     @Update
     suspend fun update(event: FeedingEvent)
 
