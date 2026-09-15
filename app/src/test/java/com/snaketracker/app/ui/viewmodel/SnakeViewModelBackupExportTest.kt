@@ -2,20 +2,25 @@ package com.snaketracker.app.ui.viewmodel
 
 import android.net.TestUri
 import android.net.Uri
+import com.snaketracker.app.data.backup.BackupExportException
+import com.snaketracker.app.data.backup.BackupExportFailureReason
 import com.snaketracker.app.data.backup.BackupExportGateway
 import com.snaketracker.app.data.backup.BackupJsonSource
 import com.snaketracker.app.testing.viewModelTestRepository
 import com.snaketracker.app.ui.model.BackupExportState
 import java.io.IOException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertSame
 import org.junit.Test
 
@@ -39,8 +44,10 @@ class SnakeViewModelBackupExportTest {
     private class RecordingGateway(private val displayName: String) : BackupExportGateway {
         var writtenJson: String? = null
         var writtenTo: Uri? = null
+        var saveCalls = 0
 
         override suspend fun save(destination: Uri, json: String): String {
+            saveCalls++
             writtenJson = json
             writtenTo = destination
             return displayName
@@ -70,27 +77,35 @@ class SnakeViewModelBackupExportTest {
     }
 
     @Test
-    fun `exportBackup gateway failure exposes the write reason`() = runOnViewModelMain {
-        val reason = "The chosen location could not be opened for writing."
+    fun `exportBackup gateway failure exposes the typed destination reason`() = runOnViewModelMain {
         val viewModel = viewModelWith(
             object : BackupExportGateway {
-                override suspend fun save(destination: Uri, json: String): String = throw IOException(reason)
+                override suspend fun save(destination: Uri, json: String): String =
+                    throw BackupExportException(
+                        BackupExportFailureReason.DESTINATION_UNOPENABLE,
+                        "The chosen location could not be opened for writing."
+                    )
             }
         )
 
         viewModel.exportBackup(TestUri)
         advanceUntilIdle()
 
-        assertEquals(BackupExportState.Failure(reason), backupExportStateOf(viewModel))
+        assertEquals(
+            BackupExportState.Failure(BackupExportFailureReason.DESTINATION_UNOPENABLE),
+            backupExportStateOf(viewModel)
+        )
     }
 
     @Test
-    fun `exportBackup source failure exposes the export reason`() = runOnViewModelMain {
-        val reason = "Database snapshot read failed."
+    fun `exportBackup untyped failure reports unknown reason and never leaks the raw message`() = runOnViewModelMain {
+        // A raw Room/SQLite-style message with a storage path: exactly what
+        // must never reach the dialog (issue #26 WB3).
+        val rawMessage = "SQLiteLog: (14) cannot open /data/user/0/com.snaketracker.app/databases/snake.db"
         val viewModel = SnakeViewModel(
             repository = viewModelTestRepository(),
             backupJsonSource = object : BackupJsonSource {
-                override suspend fun exportAll(): String = throw IllegalStateException(reason)
+                override suspend fun exportAll(): String = throw IllegalStateException(rawMessage)
             },
             backupExportGateway = RecordingGateway(savedFileName)
         )
@@ -98,7 +113,27 @@ class SnakeViewModelBackupExportTest {
         viewModel.exportBackup(TestUri)
         advanceUntilIdle()
 
-        assertEquals(BackupExportState.Failure(reason), backupExportStateOf(viewModel))
+        val state = backupExportStateOf(viewModel)
+        assertEquals(BackupExportState.Failure(BackupExportFailureReason.UNKNOWN), state)
+        // The reason carries no text at all, so there is nothing to leak.
+        assertFalse(state.toString().contains(rawMessage))
+    }
+
+    @Test
+    fun `exportBackup failure without a message still reports the unknown reason`() = runOnViewModelMain {
+        val viewModel = viewModelWith(
+            object : BackupExportGateway {
+                override suspend fun save(destination: Uri, json: String): String = throw IOException()
+            }
+        )
+
+        viewModel.exportBackup(TestUri)
+        advanceUntilIdle()
+
+        assertEquals(
+            BackupExportState.Failure(BackupExportFailureReason.UNKNOWN),
+            backupExportStateOf(viewModel)
+        )
     }
 
     @Test
@@ -111,6 +146,56 @@ class SnakeViewModelBackupExportTest {
         viewModel.dismissBackupExport()
 
         assertEquals(null, backupExportStateOf(viewModel))
+    }
+
+    /**
+     * A second tap while an export is in flight must not start a second
+     * concurrent export - otherwise the coroutine that finishes last wins
+     * the dialog and can overwrite a newer result.
+     */
+    @Test
+    fun `exportBackup second call while in flight does not start a second export`() = runOnViewModelMain {
+        val gate = CompletableDeferred<Unit>()
+        val gateway = object : BackupExportGateway {
+            var calls = 0
+            override suspend fun save(destination: Uri, json: String): String {
+                calls++
+                gate.await()
+                return savedFileName
+            }
+        }
+        val viewModel = viewModelWith(gateway)
+
+        viewModel.exportBackup(TestUri)
+        runCurrent() // first export reaches the gate and suspends
+        viewModel.exportBackup(TestUri) // second tap while in flight
+        gate.complete(Unit)
+        advanceUntilIdle()
+
+        assertEquals(1, gateway.calls)
+        assertEquals(
+            BackupExportState.Success(savedFileName),
+            backupExportStateOf(viewModel)
+        )
+    }
+
+    /** After one export settles, the next tap may export again. */
+    @Test
+    fun `exportBackup after a settled export runs again`() = runOnViewModelMain {
+        val gateway = RecordingGateway(savedFileName)
+        val viewModel = viewModelWith(gateway)
+
+        viewModel.exportBackup(TestUri)
+        advanceUntilIdle()
+        viewModel.dismissBackupExport()
+        viewModel.exportBackup(TestUri)
+        advanceUntilIdle()
+
+        assertEquals(2, gateway.saveCalls)
+        assertEquals(
+            BackupExportState.Success(savedFileName),
+            backupExportStateOf(viewModel)
+        )
     }
 
     private fun viewModelWith(gateway: BackupExportGateway) = SnakeViewModel(

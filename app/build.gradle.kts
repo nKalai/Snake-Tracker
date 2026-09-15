@@ -40,6 +40,15 @@ android {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
     }
+
+    testOptions {
+        unitTests {
+            // The stub android.jar returns defaults instead of throwing
+            // "not mocked", so android.util.Log calls (e.g. backup failure
+            // logging in SnakeViewModel) keep JVM tests runnable.
+            isReturnDefaultValues = true
+        }
+    }
 }
 
 dependencies {

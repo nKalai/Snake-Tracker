@@ -1,15 +1,19 @@
 package com.snaketracker.app.ui.viewmodel
 
 import android.net.Uri
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.snaketracker.app.data.Repository
+import com.snaketracker.app.data.backup.BackupExportException
+import com.snaketracker.app.data.backup.BackupExportFailureReason
 import com.snaketracker.app.data.backup.BackupExportGateway
 import com.snaketracker.app.data.backup.BackupJsonSource
 import com.snaketracker.app.data.entities.*
 import com.snaketracker.app.ui.model.BackupExportState
 import com.snaketracker.app.ui.model.UpcomingEvent
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -24,15 +28,13 @@ class SnakeViewModel(
     private val backupExportGateway: BackupExportGateway
 ) : ViewModel() {
 
-    // Cold database-backed flows, held lazily so the ViewModel can be
-    // constructed in JVM tests (backup export state) without a Room database.
-    val snakes: Flow<List<Snake>> by lazy { repository.getAllSnakes() }
-    val foodStock: Flow<List<FoodStockItem>> by lazy { repository.getFoodStock() }
+    val snakes: Flow<List<Snake>> = repository.getAllSnakes()
+    val foodStock: Flow<List<FoodStockItem>> = repository.getFoodStock()
 
     // Projects each reminder-enabled snake's feeding schedule (last feeding + interval,
     // repeated) out about 4 months, purely from locally stored data - used to populate
     // the calendar and the "upcoming/overdue" agenda list.
-    val upcomingEvents: Flow<List<UpcomingEvent>> by lazy {
+    val upcomingEvents: Flow<List<UpcomingEvent>> =
         combine(repository.getAllSnakes(), repository.getLastFeedingPerSnake()) { snakes, lastDates ->
             val lastBySnake = lastDates.associateBy { it.snakeId }
             val now = System.currentTimeMillis()
@@ -56,21 +58,26 @@ class SnakeViewModel(
             }
             events.sortedBy { it.dueDateMillis }
         }
-    }
 
     private val _backupExportState = MutableStateFlow<BackupExportState?>(null)
 
     /** Non-null while the Settings export-result dialog should be showing. */
     val backupExportState: StateFlow<BackupExportState?> = _backupExportState.asStateFlow()
 
+    private var exportJob: Job? = null
+
     /**
      * Dumps the database and writes it to the [destination] returned by the
-     * SAF create-document picker. The gateway performs its stream work on
-     * Dispatchers.IO; the Room snapshot reads leave the main thread via
-     * Room's own executors. The outcome lands in [backupExportState].
+     * SAF create-document picker. Both halves run off the main thread: the
+     * JSON source serializes on Dispatchers.IO and the gateway does its
+     * stream work there too. The outcome lands in [backupExportState].
+     *
+     * One export at a time: a call while an export is still running is
+     * ignored, so a fast double-tap cannot race two results into the dialog.
      */
     fun exportBackup(destination: Uri) {
-        viewModelScope.launch {
+        if (exportJob?.isActive == true) return
+        exportJob = viewModelScope.launch {
             _backupExportState.value = try {
                 BackupExportState.Success(
                     backupExportGateway.save(destination, backupJsonSource.exportAll())
@@ -78,7 +85,13 @@ class SnakeViewModel(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                BackupExportState.Failure(e.message ?: e.javaClass.simpleName)
+                // The original exception (and its provider/database detail)
+                // goes to the log; the user gets a string-resource reason.
+                Log.w(TAG, "Backup export failed", e)
+                BackupExportState.Failure(
+                    (e as? BackupExportException)?.reason
+                        ?: BackupExportFailureReason.UNKNOWN
+                )
             }
         }
     }
@@ -111,4 +124,8 @@ class SnakeViewModel(
     fun addFoodStock(item: FoodStockItem) = viewModelScope.launch { repository.addFoodStock(item) }
     fun updateFoodStock(item: FoodStockItem) = viewModelScope.launch { repository.updateFoodStock(item) }
     fun deleteFoodStock(item: FoodStockItem) = viewModelScope.launch { repository.deleteFoodStock(item) }
+
+    private companion object {
+        const val TAG = "SnakeViewModel"
+    }
 }

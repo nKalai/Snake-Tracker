@@ -29,5 +29,7 @@
     <string name="backup_export_success_message">Your backup was saved to %1$s.</string>
     <string name="backup_export_failure_title">Backup failed</string>
     <string name="backup_export_failure_message">The backup could not be saved: %1$s</string>
+    <string name="backup_export_failure_reason_destination">the chosen location could not be opened for writing</string>
+    <string name="backup_export_failure_reason_unknown">an unexpected error occurred</string>
     <string name="backup_export_dismiss">OK</string>
 </resources>

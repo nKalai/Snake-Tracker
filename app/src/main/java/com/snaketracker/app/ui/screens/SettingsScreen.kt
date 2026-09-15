@@ -25,6 +25,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.snaketracker.app.R
+import com.snaketracker.app.data.backup.BackupExportFailureReason
 import com.snaketracker.app.ui.model.BackupExportState
 import com.snaketracker.app.ui.viewmodel.SnakeViewModel
 import java.time.LocalDate
@@ -111,7 +112,13 @@ private fun BackupExportResultDialog(
 
         is BackupExportState.Failure -> {
             title = stringResource(R.string.backup_export_failure_title)
-            message = stringResource(R.string.backup_export_failure_message, state.reason)
+            val reasonText = when (state.reason) {
+                BackupExportFailureReason.DESTINATION_UNOPENABLE ->
+                    stringResource(R.string.backup_export_failure_reason_destination)
+                BackupExportFailureReason.UNKNOWN ->
+                    stringResource(R.string.backup_export_failure_reason_unknown)
+            }
+            message = stringResource(R.string.backup_export_failure_message, reasonText)
         }
     }
     AlertDialog(
