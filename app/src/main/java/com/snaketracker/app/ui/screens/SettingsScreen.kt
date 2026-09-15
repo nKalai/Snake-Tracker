@@ -337,10 +337,9 @@ private fun rememberOpenDocumentPicker(
         ActivityResultContracts.OpenDocument()
     ) { uri -> onDocumentPicked(uri) }
     return remember(launcher) {
-        BackupSourcePicker { launcher.launch(JSON_MIME_TYPES) }
+        BackupSourcePicker { launcher.launch(arrayOf(JSON_MIME_TYPE)) }
     }
 }
 
+/** The one JSON mime constant both backup pickers share. */
 private const val JSON_MIME_TYPE = "application/json"
-
-private val JSON_MIME_TYPES = arrayOf("application/json")
