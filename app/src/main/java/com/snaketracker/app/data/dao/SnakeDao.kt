@@ -22,6 +22,10 @@ interface SnakeDao {
     @Insert
     suspend fun insert(snake: Snake): Long
 
+    // Whole-table wipe; used only inside the import replace-everything transaction.
+    @Query("DELETE FROM snakes")
+    suspend fun deleteAll()
+
     @Update
     suspend fun update(snake: Snake)
 

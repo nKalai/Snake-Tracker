@@ -16,6 +16,10 @@ interface WeightDao {
     @Insert
     suspend fun insert(entry: WeightEntry): Long
 
+    // Whole-table wipe; used only inside the import replace-everything transaction.
+    @Query("DELETE FROM weight_entries")
+    suspend fun deleteAll()
+
     @Update
     suspend fun update(entry: WeightEntry)
 

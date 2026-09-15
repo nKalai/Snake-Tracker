@@ -19,6 +19,10 @@ interface FoodStockDao {
     @Insert
     suspend fun insert(item: FoodStockItem): Long
 
+    // Whole-table wipe; used only inside the import replace-everything transaction.
+    @Query("DELETE FROM food_stock")
+    suspend fun deleteAll()
+
     @Update
     suspend fun update(item: FoodStockItem)
 

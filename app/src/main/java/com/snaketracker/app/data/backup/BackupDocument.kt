@@ -25,7 +25,9 @@ internal val BackupJson = Json { encodeDefaults = true }
  * carries seconds (and never a fraction). `Instant.toString`/`ISO_INSTANT`
  * drop the seconds field on some runtimes when seconds and nanos are zero,
  * which would give the envelope two shapes; one explicit pattern avoids
- * depending on that behaviour. Import (#26) validates exactly this pattern.
+ * depending on that behaviour. Export always emits exactly this shape; the
+ * import gate (#27) does not re-validate the string — the field is display
+ * metadata, never a restore input.
  */
 private val ExportedAtFormatter: DateTimeFormatter =
     DateTimeFormatter.ofPattern("uuuu-MM-dd'T'HH:mm:ss'Z'")
@@ -56,13 +58,17 @@ data class BackupDocument(
     }
 }
 
+// No list defaults: export always writes all five keys, so a file without
+// one is corrupt or hand-edited and must fail the import gate. Defaults here
+// would also let a sixth table compile through the named-arg mappings and
+// silently restore nothing.
 @Serializable
 data class BackupData(
-    val snakes: List<SnakeRow> = emptyList(),
-    val feedings: List<FeedingRow> = emptyList(),
-    val sheds: List<ShedRow> = emptyList(),
-    val weights: List<WeightRow> = emptyList(),
-    val foodStock: List<FoodStockRow> = emptyList()
+    val snakes: List<SnakeRow>,
+    val feedings: List<FeedingRow>,
+    val sheds: List<ShedRow>,
+    val weights: List<WeightRow>,
+    val foodStock: List<FoodStockRow>
 )
 
 // Row payloads carry no defaults on purpose: export always writes every key,

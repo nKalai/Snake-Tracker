@@ -21,13 +21,24 @@ class BackupDocumentTest {
         """{"schemaVersion":1,"appVersion":"1.1","exportedAt":"2026-04-01T10:15:30Z","data":""" +
             """{"snakes":[],"feedings":[],"sheds":[],"weights":[],"foodStock":[]}}"""
 
+    // Built by hand on purpose: BackupData carries no list defaults (a
+    // missing key must fail the import gate), so the empty-file fixture
+    // spells all five lists out.
+    private val emptyData = BackupData(
+        snakes = emptyList(),
+        feedings = emptyList(),
+        sheds = emptyList(),
+        weights = emptyList(),
+        foodStock = emptyList()
+    )
+
     @Test
     fun envelope_encodesLockedSchemaKeysInOrder() {
         val document = BackupDocument(
             schemaVersion = BackupDocument.SCHEMA_VERSION,
             appVersion = "1.1",
             exportedAt = "2026-04-01T10:15:30Z",
-            data = BackupData()
+            data = emptyData
         )
 
         assertEquals(emptyEnvelopeJson, BackupJson.encodeToString(BackupDocument.serializer(), document))
@@ -40,7 +51,7 @@ class BackupDocumentTest {
         assertEquals(1, document.schemaVersion)
         assertEquals("1.1", document.appVersion)
         assertEquals("2026-04-01T10:15:30Z", document.exportedAt)
-        assertEquals(BackupData(), document.data)
+        assertEquals(emptyData, document.data)
     }
 
     @Test

@@ -16,6 +16,10 @@ interface ShedDao {
     @Insert
     suspend fun insert(event: ShedEvent): Long
 
+    // Whole-table wipe; used only inside the import replace-everything transaction.
+    @Query("DELETE FROM shed_events")
+    suspend fun deleteAll()
+
     @Update
     suspend fun update(event: ShedEvent)
 
