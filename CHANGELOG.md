@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+- The groundwork for backups is in place: the app can now gather everything it knows — your snakes, feedings, sheds, weights, and food stock — into one safe, portable backup file. A way to create that file from inside the app arrives in a coming update.
+
 ### Changed
 - The app now targets Android 17 (API level 37), the newest stable Android release, so it runs under the current system rules on new phones. There is no visible change to how the app looks or works.
 - The app's build tools and libraries (Kotlin symbol processing, Jetpack Compose, Navigation, Room, coroutines test) were updated to their latest stable versions. There is no visible change to how the app looks or works.
