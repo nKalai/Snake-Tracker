@@ -24,6 +24,8 @@ import com.snaketracker.app.ui.screens.ExactAlarmPromptDialog
 import com.snaketracker.app.ui.theme.SnakeTrackerTheme
 import com.snaketracker.app.ui.viewmodel.SnakeViewModel
 import com.snaketracker.app.ui.viewmodel.ViewModelFactory
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 class MainActivity : ComponentActivity() {
 
@@ -63,9 +65,17 @@ class MainActivity : ComponentActivity() {
                         app.backupRepository,
                         app.backupImportGateway,
                         // Issue #28 WB5: after a successful import the alarm is
-                        // recomputed from the new data through the same reminder
-                        // reschedule entry point the launch-time receivers use.
-                        rearmReminders = { ReminderArming.refresh(app) }
+                        // recomputed from the new data through the reschedule-
+                        // only entry — the same next-instant + re-arm pair the
+                        // launch-time observer uses, with no due-now
+                        // notification pass (importing is not a due-time
+                        // event). Off Main, on the receivers' Dispatchers.
+                        // Default convention.
+                        rearmReminders = {
+                            withContext(Dispatchers.Default) {
+                                ReminderArming.reschedule(app)
+                            }
+                        }
                     )
                 )
                 SnakeTrackerNavGraph(viewModel = viewModel)

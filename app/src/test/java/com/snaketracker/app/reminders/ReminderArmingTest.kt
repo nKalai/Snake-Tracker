@@ -66,4 +66,37 @@ class ReminderArmingTest {
 
         assertEquals(null, rescheduledAt)
     }
+
+    /**
+     * The reschedule-only entry (#28 WB5): after a bulk data change such as a
+     * backup import, the alarm moves to the plan's next instant and the
+     * due-now candidates get no notification pass at all — the entry has no
+     * notify channel by construction, unlike [notifyDueSnakesAndReschedule].
+     */
+    @Test
+    fun rescheduleOnly_movesAlarmToThePlanInstant_andCarriesNoNotifyChannel() {
+        val candidates = listOf(
+            // Fed 2026-09-01; interval 7 → due 2026-09-08 09:00 local, overdue now.
+            ReminderCandidate(1, "Due", 7, Instant.parse("2026-09-01T12:00:00Z"))
+        )
+        val plan = ReminderPlanner.plan(candidates, now, zone)
+        // The plan is due-now: refresh would notify this snake; the
+        // reschedule-only entry must only move the alarm.
+        assertEquals(setOf(1L), plan.dueSnakeIds)
+        var rescheduledAt: Instant? = Instant.EPOCH
+
+        rescheduleToNextAlarm(plan) { at -> rescheduledAt = at }
+
+        // Overdue at 12:00 local with today's 09:00 already passed → next 09:00 local.
+        assertEquals(Instant.parse("2026-09-15T07:00:00Z"), rescheduledAt)
+    }
+
+    @Test
+    fun rescheduleOnly_withNoNextAlarm_cancelsEverything() {
+        var rescheduledAt: Instant? = Instant.EPOCH
+
+        rescheduleToNextAlarm(ReminderPlan(emptySet(), null)) { at -> rescheduledAt = at }
+
+        assertEquals(null, rescheduledAt)
+    }
 }
