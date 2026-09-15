@@ -1,15 +1,13 @@
 package com.snaketracker.app.navigation
 
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.Kitchen
-import androidx.compose.material.icons.filled.Pets
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
+import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -26,12 +24,14 @@ object Routes {
     const val EDIT_SNAKE = "edit_snake/{snakeId}"
     const val DETAIL = "detail/{snakeId}"
     const val FOOD_STOCK = "food_stock"
+    const val SETTINGS = "settings"
 
     fun editSnake(id: Long) = "edit_snake/$id"
     fun detail(id: Long) = "detail/$id"
 
-    // The three destinations reachable from the bottom navigation bar.
-    val topLevel = setOf(CALENDAR, LIST, FOOD_STOCK)
+    // The destinations reachable from the bottom navigation bar, derived from
+    // the tab descriptors so the bar and this set can never disagree.
+    val topLevel: Set<String> = TopLevelDestinations.all.map { it.route }.toSet()
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -45,25 +45,16 @@ fun SnakeTrackerNavGraph(viewModel: SnakeViewModel) {
         bottomBar = {
             if (currentRoute in Routes.topLevel) {
                 NavigationBar {
-                    NavigationBarItem(
-                        selected = currentRoute == Routes.CALENDAR,
-                        onClick = { navController.navigateTopLevel(Routes.CALENDAR) },
-                        icon = { Icon(Icons.Filled.CalendarMonth, contentDescription = "Calendar") },
-                        label = { Text("Calendar") }
-                    )
-                    NavigationBarItem(
-                        selected = currentRoute == Routes.LIST,
-                        onClick = { navController.navigateTopLevel(Routes.LIST) },
-                        modifier = Modifier.testTag("nav_snakes"),
-                        icon = { Icon(Icons.Filled.Pets, contentDescription = "Snakes") },
-                        label = { Text("Snakes") }
-                    )
-                    NavigationBarItem(
-                        selected = currentRoute == Routes.FOOD_STOCK,
-                        onClick = { navController.navigateTopLevel(Routes.FOOD_STOCK) },
-                        icon = { Icon(Icons.Filled.Kitchen, contentDescription = "Food Stock") },
-                        label = { Text("Food Stock") }
-                    )
+                    TopLevelDestinations.all.forEach { destination ->
+                        val label = stringResource(destination.labelRes)
+                        NavigationBarItem(
+                            selected = currentRoute == destination.route,
+                            onClick = { navController.navigateTopLevel(destination.route) },
+                            modifier = Modifier.testTag(destination.testTag),
+                            icon = { Icon(destination.icon, contentDescription = label) },
+                            label = { Text(label) }
+                        )
+                    }
                 }
             }
         }
@@ -111,12 +102,15 @@ fun SnakeTrackerNavGraph(viewModel: SnakeViewModel) {
             composable(Routes.FOOD_STOCK) {
                 FoodStockScreen(viewModel = viewModel)
             }
+            composable(Routes.SETTINGS) {
+                SettingsScreen()
+            }
         }
     }
 }
 
-/** Switches between the three bottom-nav tabs while keeping Calendar as the base of the stack. */
-private fun androidx.navigation.NavHostController.navigateTopLevel(route: String) {
+/** Switches between the bottom-nav tabs while keeping Calendar as the base of the stack. */
+private fun NavHostController.navigateTopLevel(route: String) {
     navigate(route) {
         popUpTo(Routes.CALENDAR) { inclusive = false }
         launchSingleTop = true
