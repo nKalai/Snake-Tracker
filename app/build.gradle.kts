@@ -11,7 +11,7 @@ android {
     defaultConfig {
         applicationId = "com.snaketracker.app"
         minSdk = 26
-        targetSdk = 36
+        targetSdk = 37
         versionCode = 3
         versionName = "1.1"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
