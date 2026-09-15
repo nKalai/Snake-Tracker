@@ -363,15 +363,33 @@ class BackupImportTest {
         )
 
         assertEquals(
-            ImportSummary.Success(snakes = 2, feedings = 3, sheds = 1, weights = 2, foodStock = 1),
+            ImportSummary.Success(
+                listOf(
+                    TableCount(BackupTable.SNAKE, 2),
+                    TableCount(BackupTable.FEEDING, 3),
+                    TableCount(BackupTable.SHED, 1),
+                    TableCount(BackupTable.WEIGHT, 2),
+                    TableCount(BackupTable.FOOD_STOCK, 1)
+                )
+            ),
             importSummaryOf(data)
         )
     }
 
     @Test
     fun importSummaryOf_emptyFile_countsZeros() {
+        // Counted rows survive in table order - the order the result dialog
+        // line-up renders - even when every table is empty.
         assertEquals(
-            ImportSummary.Success(snakes = 0, feedings = 0, sheds = 0, weights = 0, foodStock = 0),
+            ImportSummary.Success(
+                listOf(
+                    TableCount(BackupTable.SNAKE, 0),
+                    TableCount(BackupTable.FEEDING, 0),
+                    TableCount(BackupTable.SHED, 0),
+                    TableCount(BackupTable.WEIGHT, 0),
+                    TableCount(BackupTable.FOOD_STOCK, 0)
+                )
+            ),
             importSummaryOf(fileData())
         )
     }

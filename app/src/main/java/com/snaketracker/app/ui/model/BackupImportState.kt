@@ -3,30 +3,18 @@ package com.snaketracker.app.ui.model
 import androidx.annotation.StringRes
 import com.snaketracker.app.R
 import com.snaketracker.app.data.backup.ImportFailure
-import com.snaketracker.app.data.backup.ImportSummary
+import com.snaketracker.app.data.backup.TableCount
 
 /**
  * Outcome of a user-initiated backup import, rendered by the Settings screen
- * result dialog. [Success] carries the per-table counts as the UI-side
- * [Counts] view of the engine's report; [Failure] carries the message
- * resource that names the reason (issue #28 WB4).
+ * result dialog. [Success] carries the engine's per-table counts verbatim —
+ * one [TableCount] list from the engine to the dialog, no field-by-field
+ * mirrors (PR #34 review 🟡); [Failure] carries the message resource that
+ * names the reason (issue #28 WB4).
  */
 sealed interface BackupImportState {
-    data class Success(val counts: Counts) : BackupImportState
+    data class Success(val counts: List<TableCount>) : BackupImportState
     data class Failure(@StringRes val messageRes: Int) : BackupImportState
-
-    /**
-     * The per-table imported counts the result dialog renders, in table
-     * order — the UI's own view of [ImportSummary.Success], so the dialog's
-     * call sites never spell two nested types with the same name.
-     */
-    data class Counts(
-        val snakes: Int,
-        val feedings: Int,
-        val sheds: Int,
-        val weights: Int,
-        val foodStock: Int
-    )
 }
 
 /**

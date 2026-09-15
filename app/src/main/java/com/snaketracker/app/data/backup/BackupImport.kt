@@ -33,18 +33,19 @@ sealed interface ImportFailure {
 /** Table a backup row belongs to; the vocabulary rejection reasons name. */
 enum class BackupTable { SNAKE, FEEDING, SHED, WEIGHT, FOOD_STOCK }
 
+/** How many rows one restored file contributed for one table. */
+data class TableCount(val table: BackupTable, val count: Int)
+
 /**
  * Outcome of `BackupRepository.importJson`: per-table imported counts on
  * success, or the typed [ImportFailure] that stopped the import.
+ *
+ * The counts travel as one list in table order, so a sixth table extends
+ * them here instead of cloning an N-field record through the engine, the
+ * ViewModel state and the dialog (PR #34 review 🟡).
  */
 sealed interface ImportSummary {
-    data class Success(
-        val snakes: Int,
-        val feedings: Int,
-        val sheds: Int,
-        val weights: Int,
-        val foodStock: Int
-    ) : ImportSummary
+    data class Success(val counts: List<TableCount>) : ImportSummary
 
     data class Failure(val reason: ImportFailure) : ImportSummary
 }
@@ -164,11 +165,17 @@ internal fun resolveStockLinks(data: BackupData): BackupData {
     )
 }
 
-/** Per-table counts of an accepted file, as reported in [ImportSummary.Success]. */
+/**
+ * Per-table counts of an accepted file, in table order, as reported in
+ * [ImportSummary.Success] - the one place the five tables are enumerated
+ * for counting.
+ */
 internal fun importSummaryOf(data: BackupData): ImportSummary.Success = ImportSummary.Success(
-    snakes = data.snakes.size,
-    feedings = data.feedings.size,
-    sheds = data.sheds.size,
-    weights = data.weights.size,
-    foodStock = data.foodStock.size
+    counts = listOf(
+        TableCount(BackupTable.SNAKE, data.snakes.size),
+        TableCount(BackupTable.FEEDING, data.feedings.size),
+        TableCount(BackupTable.SHED, data.sheds.size),
+        TableCount(BackupTable.WEIGHT, data.weights.size),
+        TableCount(BackupTable.FOOD_STOCK, data.foodStock.size)
+    )
 )

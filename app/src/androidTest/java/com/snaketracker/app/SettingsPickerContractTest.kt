@@ -50,7 +50,7 @@ class SettingsPickerContractTest {
         // unused defaults from the shared harness.
         viewModel = SettingsBackupHarness.viewModel(
             db = db,
-            backup = SettingsBackupHarness.engineReturning(ImportSummary.Success(0, 0, 0, 0, 0)),
+            backup = SettingsBackupHarness.engineReturning(ImportSummary.Success(emptyList())),
             importGateway = SettingsBackupHarness.importGatewayReading()
         )
     }
