@@ -11,6 +11,13 @@ enum class BackupExportFailureReason {
     /** The picked destination could not be opened for writing at all. */
     DESTINATION_UNOPENABLE,
 
+    /**
+     * The destination opened, but writing it failed. The destination was
+     * truncated when it opened, so the chosen file may now be incomplete —
+     * the dialog copy must say so (PR #34 review 🔴).
+     */
+    DESTINATION_UNWRITABLE,
+
     /** Anything unexpected; the original exception is logged, not shown. */
     UNKNOWN
 }

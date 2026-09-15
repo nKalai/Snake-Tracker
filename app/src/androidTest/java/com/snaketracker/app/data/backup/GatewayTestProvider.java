@@ -26,6 +26,13 @@ import java.util.List;
  *   <li>{@code nullstream/<file name>}: {@link #openFile} returns a null
  *       descriptor, which {@code ContentResolver.openOutputStream} surfaces
  *       as the null stream the gateway must type as DESTINATION_UNOPENABLE.</li>
+ *   <li>{@code failingwrite/<file name>}: the descriptor opens successfully
+ *       but is read-only, so the resolver hands out a stream that accepts
+ *       the open and fails every write — the mid-write failure the export
+ *       gateway must type as DESTINATION_UNWRITABLE.</li>
+ *   <li>{@code oversize/<file name>}: answers the SIZE projection query
+ *       with {@link #PROVIDER_REPORTED_SIZE}, far above any sane backup, so
+ *       the import gateway can reject the source before reading it.</li>
  * </ul>
  *
  * <p>Writes land in the test package's cache dir; tests that assert on the
@@ -43,6 +50,9 @@ public class GatewayTestProvider extends ContentProvider {
 
     /** Display name {@code named} mode reports; different from any URI name on purpose. */
     public static final String PROVIDER_DISPLAY_NAME = "Renamed Backup.json";
+
+    /** Byte size {@code oversize} mode reports; above the import gateway's bound on purpose. */
+    public static final long PROVIDER_REPORTED_SIZE = 64L * 1024 * 1024;
 
     /** {@code content://<authority>/<mode>/<name>} for the behavior {@code mode}. */
     public static Uri uri(String mode, String name) {
@@ -78,8 +88,14 @@ public class GatewayTestProvider extends ContentProvider {
             }
             name.append(segments.get(i));
         }
+        File target = new File(getContext().getCacheDir(), name.toString());
+        if ("failingwrite".equals(firstSegment(uri))) {
+            // A read-only descriptor: the open succeeds, every write fails.
+            return ParcelFileDescriptor.open(target, ParcelFileDescriptor.MODE_READ_ONLY
+                    | ParcelFileDescriptor.MODE_CREATE);
+        }
         return ParcelFileDescriptor.open(
-                new File(getContext().getCacheDir(), name.toString()),
+                target,
                 ParcelFileDescriptor.MODE_WRITE_ONLY
                         | ParcelFileDescriptor.MODE_CREATE
                         | ParcelFileDescriptor.MODE_TRUNCATE);
@@ -99,6 +115,11 @@ public class GatewayTestProvider extends ContentProvider {
         if ("named".equals(mode)) {
             MatrixCursor cursor = new MatrixCursor(new String[] {OpenableColumns.DISPLAY_NAME});
             cursor.addRow(new Object[] {PROVIDER_DISPLAY_NAME});
+            return cursor;
+        }
+        if ("oversize".equals(mode)) {
+            MatrixCursor cursor = new MatrixCursor(new String[] {OpenableColumns.SIZE});
+            cursor.addRow(new Object[] {Long.valueOf(PROVIDER_REPORTED_SIZE)});
             return cursor;
         }
         return null;

@@ -28,9 +28,9 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.snaketracker.app.R
-import com.snaketracker.app.data.backup.BackupExportFailureReason
 import com.snaketracker.app.ui.model.BackupExportState
 import com.snaketracker.app.ui.model.BackupImportState
+import com.snaketracker.app.ui.model.backupExportMessageFor
 import com.snaketracker.app.ui.viewmodel.SnakeViewModel
 import java.time.LocalDate
 
@@ -151,28 +151,21 @@ private fun BackupExportResultDialog(
 
         is BackupExportState.Failure -> {
             title = stringResource(R.string.backup_export_failure_title)
-            val reasonText = when (state.reason) {
-                BackupExportFailureReason.DESTINATION_UNOPENABLE ->
-                    stringResource(R.string.backup_export_failure_reason_destination)
-                BackupExportFailureReason.UNKNOWN ->
-                    stringResource(R.string.backup_export_failure_reason_unknown)
-            }
+            // The reason->copy mapping is the model layer's (backupExportMessageFor),
+            // so a new reason can only ship with its own message, never a
+            // composable edit.
+            val reasonText = stringResource(backupExportMessageFor(state.reason))
             message = stringResource(R.string.backup_export_failure_message, reasonText)
         }
     }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Text(title, modifier = Modifier.testTag("backup_export_dialog_title"))
-        },
-        text = {
-            Text(message, modifier = Modifier.testTag("backup_export_message"))
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss, modifier = Modifier.testTag("backup_export_dismiss")) {
-                Text(stringResource(R.string.backup_export_dismiss))
-            }
-        }
+    BackupResultDialog(
+        title = title,
+        message = message,
+        dismissLabel = stringResource(R.string.backup_export_dismiss),
+        titleTag = "backup_export_dialog_title",
+        messageTag = "backup_export_message",
+        dismissTag = "backup_export_dismiss",
+        onDismiss = onDismiss
     )
 }
 
@@ -244,17 +237,43 @@ private fun BackupImportResultDialog(
             message = stringResource(state.messageRes)
         }
     }
+    BackupResultDialog(
+        title = title,
+        message = message,
+        dismissLabel = stringResource(R.string.backup_import_dismiss),
+        titleTag = "backup_import_dialog_title",
+        messageTag = "backup_import_message",
+        dismissTag = "backup_import_dismiss",
+        onDismiss = onDismiss
+    )
+}
+
+/**
+ * The one AlertDialog scaffold both backup result dialogs share: a title, a
+ * message, and a single dismiss button. Only the copy and the test tags are
+ * per-dialog.
+ */
+@Composable
+private fun BackupResultDialog(
+    title: String,
+    message: String,
+    dismissLabel: String,
+    titleTag: String,
+    messageTag: String,
+    dismissTag: String,
+    onDismiss: () -> Unit
+) {
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
-            Text(title, modifier = Modifier.testTag("backup_import_dialog_title"))
+            Text(title, modifier = Modifier.testTag(titleTag))
         },
         text = {
-            Text(message, modifier = Modifier.testTag("backup_import_message"))
+            Text(message, modifier = Modifier.testTag(messageTag))
         },
         confirmButton = {
-            TextButton(onClick = onDismiss, modifier = Modifier.testTag("backup_import_dismiss")) {
-                Text(stringResource(R.string.backup_import_dismiss))
+            TextButton(onClick = onDismiss, modifier = Modifier.testTag(dismissTag)) {
+                Text(dismissLabel)
             }
         }
     )
