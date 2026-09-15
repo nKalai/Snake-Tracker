@@ -81,7 +81,7 @@ fun SettingsScreen(
                 },
                 modifier = Modifier
                     .testTag("import_backup_row")
-                    .clickable { backupSourcePicker.launch(JSON_MIME_TYPES) }
+                    .clickable { backupSourcePicker.pick() }
             )
         }
     }
@@ -186,9 +186,14 @@ private fun BackupImportResultDialog(
     )
 }
 
-/** Launches the open-document picker restricted to [mimeTypes]. */
+/**
+ * Launches the picker for the JSON backup file the user wants to import.
+ * The JSON restriction is the capability itself, so it lives inside the
+ * implementations — callers cannot pick a different filter, and the fake
+ * has nothing to echo.
+ */
 fun interface BackupSourcePicker {
-    fun launch(mimeTypes: Array<String>)
+    fun pick()
 }
 
 /**
@@ -204,7 +209,7 @@ private fun rememberOpenDocumentPicker(
         ActivityResultContracts.OpenDocument()
     ) { uri -> onDocumentPicked(uri) }
     return remember(launcher) {
-        BackupSourcePicker { mimeTypes -> launcher.launch(mimeTypes) }
+        BackupSourcePicker { launcher.launch(JSON_MIME_TYPES) }
     }
 }
 

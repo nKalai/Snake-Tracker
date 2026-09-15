@@ -26,7 +26,6 @@ import java.io.IOException
 import java.util.concurrent.atomic.AtomicInteger
 import org.junit.After
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertArrayEquals
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -35,15 +34,15 @@ import org.junit.runner.RunWith
 
 /**
  * Settings import-backup UI (issue #28) driven through [SettingsScreen]'s
- * public seam: a fake [BackupSourcePicker] plays the SAF open-document picker
- * (it records the requested mime types and can echo a picked URI straight
- * into the ViewModel), and fake backup seams decide the outcome — so the
- * confirmation gate and both result dialogs render without a real system
- * document UI.
+ * public seam: a fake [BackupSourcePicker] plays the SAF open-document
+ * picker (it can echo a picked URI straight into the ViewModel), and fake
+ * backup seams decide the outcome — so the confirmation gate and both result
+ * dialogs render without a real system document UI. The real picker contract
+ * is pinned in [SettingsPickerContractTest].
  *
  * The reminder re-arm is asserted at the seam the ViewModel calls — the same
- * suspend entry point production wires to `ReminderArming.refresh` — never by
- * inspecting AlarmManager.
+ * suspend entry point production wires to `ReminderArming.reschedule` — never
+ * by inspecting AlarmManager.
  *
  * Runtime permission prompts and the one-time exact-alarm prompt are
  * suppressed up front via [uiSuppressionChain]; assertions target stable
@@ -106,13 +105,9 @@ class SettingsBackupImportTest {
                 throw IOException("The chosen file could not be opened for reading.")
         }
 
-    /** Picker stand-in; [echoPickedFile] makes "launch" immediately act like a completed pick. */
+    /** Picker stand-in; [echoPickedFile] makes "pick" immediately act like a completed pick. */
     private class TestPicker(private val echoPickedFile: () -> Unit) : BackupSourcePicker {
-        var requestedMimeTypes: Array<String>? = null
-        override fun launch(mimeTypes: Array<String>) {
-            requestedMimeTypes = mimeTypes
-            echoPickedFile()
-        }
+        override fun pick() = echoPickedFile()
     }
 
     private fun showSettings(picker: BackupSourcePicker) {
@@ -139,18 +134,6 @@ class SettingsBackupImportTest {
         composeRule
             .onNodeWithText(composeRule.activity.getString(R.string.settings_import_backup))
             .assertIsDisplayed()
-    }
-
-    /** WB1: tapping the row launches the open-document picker restricted to JSON. */
-    @Test
-    fun tappingImportBackup_launchesOpenDocumentPickerForJson() {
-        viewModel = Harness(gatewayReturning(backupJson), sinkReturning(EMPTY_SUCCESS)).viewModel
-        val picker = TestPicker { }
-        showSettings(picker)
-
-        composeRule.onNodeWithTag("import_backup_row").performClick()
-
-        assertArrayEquals(arrayOf("application/json"), picker.requestedMimeTypes)
     }
 
     /** WB2: a pick raises the destructive-worded confirmation; cancelling runs nothing. */
