@@ -9,7 +9,7 @@ import com.snaketracker.app.data.backup.BackupData
 import com.snaketracker.app.data.backup.BackupDocument
 import com.snaketracker.app.data.backup.BackupJson
 import com.snaketracker.app.data.backup.BackupRepository
-import com.snaketracker.app.data.backup.ChildTable
+import com.snaketracker.app.data.backup.BackupTable
 import com.snaketracker.app.data.backup.FeedingRow
 import com.snaketracker.app.data.backup.FoodStockRow
 import com.snaketracker.app.data.backup.ImportFailure
@@ -61,6 +61,102 @@ class BackupRepositoryImportTest {
         db.close()
     }
 
+    // Fixture builders: sane defaults inside, overrides via named args
+    // (the convention in BackupRepositoryExportTest / BackupDataTest).
+
+    private fun snakeRow(
+        id: Long = 1,
+        name: String = "Noodle",
+        species: String = "",
+        morph: String = "",
+        sex: String = "Unknown",
+        acquisitionDate: Long? = null,
+        enclosure: String = "",
+        notes: String = "",
+        feedingIntervalDays: Int = 7,
+        remindersEnabled: Boolean = true
+    ): SnakeRow = SnakeRow(
+        id = id,
+        name = name,
+        species = species,
+        morph = morph,
+        sex = sex,
+        birthDate = null,
+        acquisitionDate = acquisitionDate,
+        enclosure = enclosure,
+        notes = notes,
+        feedingIntervalDays = feedingIntervalDays,
+        remindersEnabled = remindersEnabled
+    )
+
+    private fun feedingRow(
+        id: Long = 10,
+        snakeId: Long = 1,
+        date: Long = 100,
+        foodType: String = "Mouse",
+        foodSize: String = "",
+        accepted: Boolean = true,
+        notes: String = "",
+        foodStockItemId: Long? = null
+    ): FeedingRow = FeedingRow(
+        id = id,
+        snakeId = snakeId,
+        date = date,
+        foodType = foodType,
+        foodSize = foodSize,
+        accepted = accepted,
+        assist = false,
+        notes = notes,
+        foodStockItemId = foodStockItemId
+    )
+
+    private fun shedRow(
+        id: Long = 20,
+        snakeId: Long = 1,
+        date: Long = 100,
+        complete: Boolean = true,
+        notes: String = ""
+    ): ShedRow = ShedRow(id = id, snakeId = snakeId, date = date, complete = complete, notes = notes)
+
+    private fun weightRow(
+        id: Long = 30,
+        snakeId: Long = 1,
+        date: Long = 100,
+        grams: Float = 10f,
+        notes: String = ""
+    ): WeightRow = WeightRow(id = id, snakeId = snakeId, date = date, grams = grams, notes = notes)
+
+    private fun stockRow(
+        id: Long = 100,
+        name: String = "Mice",
+        foodType: String = "Mouse",
+        size: String = "",
+        quantity: Int = 5,
+        lowStockThreshold: Int = 2
+    ): FoodStockRow = FoodStockRow(
+        id = id,
+        name = name,
+        foodType = foodType,
+        size = size,
+        quantity = quantity,
+        lowStockThreshold = lowStockThreshold,
+        notes = ""
+    )
+
+    private fun fileData(
+        snakes: List<SnakeRow> = emptyList(),
+        feedings: List<FeedingRow> = emptyList(),
+        sheds: List<ShedRow> = emptyList(),
+        weights: List<WeightRow> = emptyList(),
+        foodStock: List<FoodStockRow> = emptyList()
+    ): BackupData = BackupData(
+        snakes = snakes,
+        feedings = feedings,
+        sheds = sheds,
+        weights = weights,
+        foodStock = foodStock
+    )
+
     private fun envelopeJson(data: BackupData, schemaVersion: Int = 1): String =
         BackupJson.encodeToString(
             BackupDocument.serializer(),
@@ -101,18 +197,18 @@ class BackupRepositoryImportTest {
     fun importJson_validFile_deviceHoldsExactlyTheFilesRowsWithOriginalIds() = runBlocking {
         seedDeviceData()
 
-        val fileData = BackupData(
+        val fileData = fileData(
             snakes = listOf(
-                SnakeRow(1, "Noodle", "Python regius", "Banana", "Female", null, 1_700_000_000_000, "Rack 1", "Feedy", 9, false),
-                SnakeRow(2, "Cobra", "", "", "Male", null, null, "", "", 7, true)
+                snakeRow(id = 1, name = "Noodle", species = "Python regius", morph = "Banana", sex = "Female", acquisitionDate = 1_700_000_000_000, enclosure = "Rack 1", notes = "Feedy", feedingIntervalDays = 9, remindersEnabled = false),
+                snakeRow(id = 2, name = "Cobra", sex = "Male")
             ),
             feedings = listOf(
-                FeedingRow(10, snakeId = 1, date = 1_750_000_000_000, foodType = "Mouse", foodSize = "Adult", accepted = true, assist = false, notes = "", foodStockItemId = 100),
-                FeedingRow(11, snakeId = 2, date = 1_750_086_400_000, foodType = "Rat", foodSize = "", accepted = true, assist = false, notes = "", foodStockItemId = null)
+                feedingRow(id = 10, snakeId = 1, date = 1_750_000_000_000, foodSize = "Adult", foodStockItemId = 100),
+                feedingRow(id = 11, snakeId = 2, date = 1_750_086_400_000, foodType = "Rat")
             ),
-            sheds = listOf(ShedRow(20, snakeId = 1, date = 1_750_100_000_000, complete = false, notes = "Partial")),
-            weights = listOf(WeightRow(30, snakeId = 2, date = 1_750_120_000_000, grams = 900f, notes = "Fasting")),
-            foodStock = listOf(FoodStockRow(100, "Frozen mice", "Mouse", "Pinky", 12, 3, ""))
+            sheds = listOf(shedRow(id = 20, snakeId = 1, date = 1_750_100_000_000, complete = false, notes = "Partial")),
+            weights = listOf(weightRow(id = 30, snakeId = 2, date = 1_750_120_000_000, grams = 900f, notes = "Fasting")),
+            foodStock = listOf(stockRow(id = 100, name = "Frozen mice", size = "Pinky", quantity = 12, lowStockThreshold = 3))
         )
 
         val summary = repository.importJson(envelopeJson(fileData))
@@ -138,12 +234,27 @@ class BackupRepositoryImportTest {
     }
 
     @Test
+    fun importJson_validEmptyFile_wipesAllDeviceData() = runBlocking {
+        // "Replaces everything" must hold for the least-export-looking valid
+        // file too: five empty lists wipe the device completely.
+        seedDeviceData()
+
+        val summary = repository.importJson(envelopeJson(fileData()))
+
+        assertEquals(ImportSummary.Success(snakes = 0, feedings = 0, sheds = 0, weights = 0, foodStock = 0), summary)
+        val tables = snapshotTables()
+        assertEquals(emptyList<Snake>(), tables.snakes)
+        assertEquals(emptyList<FeedingEvent>(), tables.feedings)
+        assertEquals(emptyList<ShedEvent>(), tables.sheds)
+        assertEquals(emptyList<WeightEntry>(), tables.weights)
+        assertEquals(emptyList<FoodStockItem>(), tables.foodStock)
+    }
+
+    @Test
     fun importJson_danglingFoodStockItemId_nullsLinkAndStillImportsRow() = runBlocking {
-        val fileData = BackupData(
-            snakes = listOf(SnakeRow(1, "Noodle", "", "", "Unknown", null, null, "", "", 7, true)),
-            feedings = listOf(
-                FeedingRow(10, snakeId = 1, date = 100, foodType = "Mouse", foodSize = "", accepted = true, assist = false, notes = "", foodStockItemId = 555)
-            )
+        val fileData = fileData(
+            snakes = listOf(snakeRow()),
+            feedings = listOf(feedingRow(foodStockItemId = 555))
         )
 
         val summary = repository.importJson(envelopeJson(fileData))
@@ -160,17 +271,31 @@ class BackupRepositoryImportTest {
         seedDeviceData()
         val before = snapshotTables()
 
-        val orphanFile = BackupData(
-            snakes = listOf(SnakeRow(1, "Noodle", "", "", "Unknown", null, null, "", "", 7, true)),
-            feedings = listOf(
-                FeedingRow(10, snakeId = 99, date = 100, foodType = "Mouse", foodSize = "", accepted = true, assist = false, notes = "", foodStockItemId = null)
-            )
+        val orphanFile = fileData(
+            snakes = listOf(snakeRow()),
+            feedings = listOf(feedingRow(snakeId = 99))
         )
 
         val summary = repository.importJson(envelopeJson(orphanFile))
 
         assertEquals(
-            ImportSummary.Failure(ImportFailure.OrphanChildRow(ChildTable.FEEDING, rowId = 10, snakeId = 99)),
+            ImportSummary.Failure(ImportFailure.OrphanChildRow(BackupTable.FEEDING, rowId = 10, snakeId = 99)),
+            summary
+        )
+        assertEquals(before, snapshotTables())
+    }
+
+    @Test
+    fun importJson_nonPositiveRowId_isRejectedBeforeAnyWrite() = runBlocking {
+        // A file whose snake row carries Room's "new row" sentinel id 0 must
+        // fail typed, before the transaction: never a renumbered insert.
+        seedDeviceData()
+        val before = snapshotTables()
+
+        val summary = repository.importJson(envelopeJson(fileData(snakes = listOf(snakeRow(id = 0)))))
+
+        assertEquals(
+            ImportSummary.Failure(ImportFailure.InvalidRowId(BackupTable.SNAKE, rowId = 0)),
             summary
         )
         assertEquals(before, snapshotTables())
@@ -182,10 +307,7 @@ class BackupRepositoryImportTest {
         val before = snapshotTables()
 
         val summary = repository.importJson(
-            envelopeJson(
-                BackupData(snakes = listOf(SnakeRow(1, "Noodle", "", "", "Unknown", null, null, "", "", 7, true))),
-                schemaVersion = 2
-            )
+            envelopeJson(fileData(snakes = listOf(snakeRow())), schemaVersion = 2)
         )
 
         assertEquals(
@@ -201,14 +323,16 @@ class BackupRepositoryImportTest {
         // feedings sharing id 10: the second insert hits the PRIMARY KEY
         // constraint mid-transaction. Room must roll the whole replace back,
         // leaving the device data byte-for-byte unchanged (issue #27 WB4).
+        // The exception propagates untyped by contract — see the importJson
+        // KDoc in BackupRepository.
         seedDeviceData()
         val before = snapshotTables()
 
-        val duplicateIdFile = BackupData(
-            snakes = listOf(SnakeRow(1, "Noodle", "", "", "Unknown", null, null, "", "", 7, true)),
+        val duplicateIdFile = fileData(
+            snakes = listOf(snakeRow()),
             feedings = listOf(
-                FeedingRow(10, snakeId = 1, date = 100, foodType = "Mouse", foodSize = "", accepted = true, assist = false, notes = "", foodStockItemId = null),
-                FeedingRow(10, snakeId = 1, date = 200, foodType = "Rat", foodSize = "", accepted = true, assist = false, notes = "", foodStockItemId = null)
+                feedingRow(id = 10, date = 100),
+                feedingRow(id = 10, date = 200, foodType = "Rat")
             )
         )
 
@@ -224,11 +348,7 @@ class BackupRepositoryImportTest {
 
     @Test
     fun importJson_importIntoEmptyDatabase_writesFileRows() = runBlocking {
-        val fileData = BackupData(
-            snakes = listOf(SnakeRow(5, "Solo", "", "", "Unknown", null, null, "", "", 7, true))
-        )
-
-        val summary = repository.importJson(envelopeJson(fileData))
+        val summary = repository.importJson(envelopeJson(fileData(snakes = listOf(snakeRow(id = 5, name = "Solo")))))
 
         assertEquals(ImportSummary.Success(snakes = 1, feedings = 0, sheds = 0, weights = 0, foodStock = 0), summary)
         assertEquals(listOf(5L), db.snakeDao().getAllOnce().map { it.id })

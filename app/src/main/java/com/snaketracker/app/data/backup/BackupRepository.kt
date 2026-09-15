@@ -28,31 +28,55 @@ class BackupRepository(
     /**
      * Restores a full backup file produced by [exportAll], replacing
      * everything: on success the five tables hold exactly the file's rows,
-     * with original ids preserved. Every rejection (see [inspectBackup]) is
-     * all-or-nothing — the database stays untouched. A mid-insert SQL error
-     * (e.g. duplicate ids inside the file) propagates after Room rolls the
-     * transaction back, so the existing data survives byte-for-byte.
+     * with original ids preserved. Every rejection (see [inspectBackup])
+     * arrives as an [ImportSummary.Failure] and is all-or-nothing — the
+     * database stays untouched.
+     *
+     * Contract for database-level errors: if a validated file still fails
+     * mid-insert (duplicate row ids, disk failure, `SQLITE_BUSY`
+     * contention), the SQL exception propagates out of this call *after*
+     * Room rolls the transaction back. Data safety is kept, but such an
+     * error is deliberately not part of the typed [ImportSummary] surface
+     * (it is not a locked rejection rule) — callers, including the #28
+     * import UI, must try/catch it if they want to name it to the user.
+     *
+     * Handoff to #28: after a successful import the armed reminder alarm
+     * still reflects the pre-import plan, because [com.snaketracker.app.
+     * reminders.ReminderArming] refreshes only from its receivers. The
+     * import UI must trigger a reminder re-arm on [ImportSummary.Success]
+     * so reminder-enabled snakes coming from the file get their alarms.
      */
     suspend fun importJson(json: String): ImportSummary {
         val data = when (val inspection = inspectBackup(json)) {
             is ImportInspection.Rejected -> return ImportSummary.Failure(inspection.reason)
             is ImportInspection.Accepted -> inspection.document.data
         }
-        val resolved = resolveStockLinks(data)
         return db.withTransaction {
-            // Children before parents keeps deletes independent of FK
-            // cascade; snakes before children satisfies the FKs on insert.
-            db.feedingDao().deleteAll()
-            db.shedDao().deleteAll()
-            db.weightDao().deleteAll()
-            db.snakeDao().deleteAll()
-            db.foodStockDao().deleteAll()
-            resolved.snakes.forEach { db.snakeDao().insert(it.toEntity()) }
-            resolved.foodStock.forEach { db.foodStockDao().insert(it.toEntity()) }
-            resolved.feedings.forEach { db.feedingDao().insert(it.toEntity()) }
-            resolved.sheds.forEach { db.shedDao().insert(it.toEntity()) }
-            resolved.weights.forEach { db.weightDao().insert(it.toEntity()) }
-            importSummaryOf(resolved)
+            // The five tables and their order are stated exactly once, in
+            // insert order: snakes before their FK children. The wipe
+            // reuses the same list reversed, so children clear before
+            // snakes regardless of FK cascade, and a sixth table is added
+            // in one place.
+            val tables = listOf(
+                TableBridge(wipe = { db.snakeDao().deleteAll() }) {
+                    data.snakes.forEach { db.snakeDao().insert(it.toEntity()) }
+                },
+                TableBridge(wipe = { db.foodStockDao().deleteAll() }) {
+                    data.foodStock.forEach { db.foodStockDao().insert(it.toEntity()) }
+                },
+                TableBridge(wipe = { db.feedingDao().deleteAll() }) {
+                    data.feedings.forEach { db.feedingDao().insert(it.toEntity()) }
+                },
+                TableBridge(wipe = { db.shedDao().deleteAll() }) {
+                    data.sheds.forEach { db.shedDao().insert(it.toEntity()) }
+                },
+                TableBridge(wipe = { db.weightDao().deleteAll() }) {
+                    data.weights.forEach { db.weightDao().insert(it.toEntity()) }
+                }
+            )
+            tables.asReversed().forEach { it.wipe() }
+            tables.forEach { it.restore() }
+            importSummaryOf(data)
         }
     }
 
@@ -74,10 +98,18 @@ class BackupRepository(
     }
 }
 
+// One table's replace-everything pair. Import order is the list order in
+// importJson; the wipe runs the same list reversed.
+private class TableBridge(
+    val wipe: suspend () -> Unit,
+    val restore: suspend () -> Unit
+)
+
 // Pure pairing of the five entity tables with their row arrays, so the
 // document assembly stays JVM-testable without a Room database (mirrors
-// com.snaketracker.app.data.buildReminderCandidates). A sixth table has to
-// pass through here, where a missing mapping fails a unit test.
+// com.snaketracker.app.data.buildReminderCandidates). BackupData has no
+// list defaults, so a sixth table breaks this named-arg call at compile
+// time and the mapping tests, never a silent empty list.
 internal fun backupData(
     snakes: List<Snake>,
     feedings: List<FeedingEvent>,
