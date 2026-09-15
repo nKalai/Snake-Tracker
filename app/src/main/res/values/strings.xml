@@ -12,4 +12,8 @@
     <string name="notification_channel_description">Reminders for when a snake is due to be fed</string>
     <string name="notification_feeding_due_title">Feeding due: %1$s</string>
     <string name="notification_feeding_due_text">%1$s is due for a feeding today.</string>
+
+    <!-- Settings bottom-nav destination. -->
+    <string name="nav_settings">Settings</string>
+    <string name="settings_title">Settings</string>
 </resources>

@@ -5,17 +5,20 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Kitchen
 import androidx.compose.material.icons.filled.Pets
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.snaketracker.app.R
 import com.snaketracker.app.ui.screens.*
 import com.snaketracker.app.ui.viewmodel.SnakeViewModel
 
@@ -26,12 +29,13 @@ object Routes {
     const val EDIT_SNAKE = "edit_snake/{snakeId}"
     const val DETAIL = "detail/{snakeId}"
     const val FOOD_STOCK = "food_stock"
+    const val SETTINGS = "settings"
 
     fun editSnake(id: Long) = "edit_snake/$id"
     fun detail(id: Long) = "detail/$id"
 
-    // The three destinations reachable from the bottom navigation bar.
-    val topLevel = setOf(CALENDAR, LIST, FOOD_STOCK)
+    // The four destinations reachable from the bottom navigation bar.
+    val topLevel = setOf(CALENDAR, LIST, FOOD_STOCK, SETTINGS)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -63,6 +67,18 @@ fun SnakeTrackerNavGraph(viewModel: SnakeViewModel) {
                         onClick = { navController.navigateTopLevel(Routes.FOOD_STOCK) },
                         icon = { Icon(Icons.Filled.Kitchen, contentDescription = "Food Stock") },
                         label = { Text("Food Stock") }
+                    )
+                    NavigationBarItem(
+                        selected = currentRoute == Routes.SETTINGS,
+                        onClick = { navController.navigateTopLevel(Routes.SETTINGS) },
+                        modifier = Modifier.testTag("nav_settings"),
+                        icon = {
+                            Icon(
+                                Icons.Filled.Settings,
+                                contentDescription = stringResource(R.string.nav_settings)
+                            )
+                        },
+                        label = { Text(stringResource(R.string.nav_settings)) }
                     )
                 }
             }
@@ -111,11 +127,14 @@ fun SnakeTrackerNavGraph(viewModel: SnakeViewModel) {
             composable(Routes.FOOD_STOCK) {
                 FoodStockScreen(viewModel = viewModel)
             }
+            composable(Routes.SETTINGS) {
+                SettingsScreen()
+            }
         }
     }
 }
 
-/** Switches between the three bottom-nav tabs while keeping Calendar as the base of the stack. */
+/** Switches between the four bottom-nav tabs while keeping Calendar as the base of the stack. */
 private fun androidx.navigation.NavHostController.navigateTopLevel(route: String) {
     navigate(route) {
         popUpTo(Routes.CALENDAR) { inclusive = false }
