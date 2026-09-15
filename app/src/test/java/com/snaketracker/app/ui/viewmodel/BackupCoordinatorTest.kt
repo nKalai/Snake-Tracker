@@ -352,6 +352,36 @@ class BackupCoordinatorTest {
 
     // ---- cancellation ----
 
+    /**
+     * "Every outcome gets a dialog": an [Error] - the OutOfMemoryError an
+     * oversized file read can raise - must still produce the failure
+     * dialog, not take the process down (PR #34 review 🟡). Cancellation
+     * stays excluded: it is the one throwable that is NOT an outcome.
+     */
+    @Test
+    fun `an Error at the read boundary still produces the failure dialog`() = runOnMain {
+        val gateway = FakeImportGateway { throw OutOfMemoryError("Tried to allocate 2 GiB") }
+        val coordinator = copyWith(importGateway = gateway)
+
+        val state = coordinator.importBackup(source)
+
+        assertEquals(
+            BackupImportState.Failure(R.string.backup_import_failure_unreadable),
+            state
+        )
+    }
+
+    @Test
+    fun `an Error at the export boundary still produces the failure dialog`() = runOnMain {
+        val gateway = FakeExportGateway { _, _ -> throw OutOfMemoryError("serializing a huge document") }
+        val coordinator = copyWith(exportGateway = gateway)
+
+        assertEquals(
+            BackupExportState.Failure(BackupExportFailureReason.UNKNOWN),
+            coordinator.exportBackup(destination)
+        )
+    }
+
     @Test
     fun `cancellation always propagates instead of becoming a dialog state`() = runOnMain {
         val gateway = FakeImportGateway { throw CancellationException("scope died") }
