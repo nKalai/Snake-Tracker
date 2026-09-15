@@ -56,7 +56,13 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             SnakeTrackerTheme {
-                val viewModel: SnakeViewModel = viewModel(factory = ViewModelFactory(app.repository))
+                val viewModel: SnakeViewModel = viewModel(
+                    factory = ViewModelFactory(
+                        app.repository,
+                        app.backupRepository,
+                        app.backupExportGateway
+                    )
+                )
                 SnakeTrackerNavGraph(viewModel = viewModel)
 
                 if (showExactAlarmPrompt) {

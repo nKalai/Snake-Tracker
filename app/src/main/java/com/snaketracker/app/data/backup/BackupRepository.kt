@@ -19,10 +19,10 @@ class BackupRepository(
     private val db: AppDatabase,
     private val appVersion: String,
     private val clock: Clock = Clock.systemUTC()
-) {
+) : BackupJsonSource {
 
     /** All five tables as one JSON backup document. */
-    suspend fun exportAll(): String =
+    override suspend fun exportAll(): String =
         BackupJson.encodeToString(BackupDocument.serializer(), backupDocument())
 
     // The five reads run inside one Room transaction, so the document is a
