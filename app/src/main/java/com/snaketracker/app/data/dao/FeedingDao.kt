@@ -23,6 +23,10 @@ interface FeedingDao {
 
     @Insert
     suspend fun insert(event: FeedingEvent): Long
+    // One-shot dump of the whole table, ordered by id for deterministic output.
+    @Query("SELECT * FROM feeding_events ORDER BY id ASC")
+    suspend fun getAllOnce(): List<FeedingEvent>
+
 
     @Update
     suspend fun update(event: FeedingEvent)

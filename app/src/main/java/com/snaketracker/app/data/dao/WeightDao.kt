@@ -11,6 +11,10 @@ interface WeightDao {
 
     @Insert
     suspend fun insert(entry: WeightEntry): Long
+    // One-shot dump of the whole table, ordered by id for deterministic output.
+    @Query("SELECT * FROM weight_entries ORDER BY id ASC")
+    suspend fun getAllOnce(): List<WeightEntry>
+
 
     @Update
     suspend fun update(entry: WeightEntry)
