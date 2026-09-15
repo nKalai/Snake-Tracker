@@ -94,19 +94,6 @@ class SettingsBackupImportTest {
         )
     }
 
-    // Export-side collaborators the import suite never reaches: failing
-    // stubs keep the shared ViewModel constructor honest.
-    private companion object {
-        val UnusedExportSource = object : BackupJsonSource {
-            override suspend fun exportAll(): String =
-                throw UnsupportedOperationException("import tests never export")
-        }
-        val UnusedExportGateway = object : BackupExportGateway {
-            override suspend fun save(destination: Uri, json: String): String =
-                throw UnsupportedOperationException("import tests never write")
-        }
-    }
-
     private fun gatewayReturning(json: String): BackupImportGateway =
         object : BackupImportGateway {
             override suspend fun read(source: Uri): String = json
@@ -332,5 +319,16 @@ class SettingsBackupImportTest {
 
     private companion object {
         val EMPTY_SUCCESS = ImportSummary.Success(0, 0, 0, 0, 0)
+
+        // Export-side collaborators the import suite never reaches: failing
+        // stubs keep the shared ViewModel constructor honest.
+        val UnusedExportSource = object : BackupJsonSource {
+            override suspend fun exportAll(): String =
+                throw UnsupportedOperationException("import tests never export")
+        }
+        val UnusedExportGateway = object : BackupExportGateway {
+            override suspend fun save(destination: Uri, json: String): String =
+                throw UnsupportedOperationException("import tests never write")
+        }
     }
 }
