@@ -13,7 +13,12 @@
     <string name="notification_feeding_due_title">Feeding due: %1$s</string>
     <string name="notification_feeding_due_text">%1$s is due for a feeding today.</string>
 
-    <!-- Settings bottom-nav destination. -->
+    <!-- Bottom-navigation tab labels (also the icon content descriptions). -->
+    <string name="nav_calendar">Calendar</string>
+    <string name="nav_snakes">Snakes</string>
+    <string name="nav_food_stock">Food Stock</string>
     <string name="nav_settings">Settings</string>
+
+    <!-- Settings screen. -->
     <string name="settings_title">Settings</string>
 </resources>
