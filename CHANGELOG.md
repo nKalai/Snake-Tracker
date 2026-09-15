@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- A new Settings tab with a gear icon now appears in the bottom navigation bar, alongside Calendar, Snakes and Food Stock. The Settings screen is a placeholder for now — it paves the way for upcoming features like importing and exporting your data, but has no actions yet.
 - The groundwork for backups is in place: the app can now gather everything it knows — your snakes, feedings, sheds, weights, and food stock — into one safe, portable backup file. A way to create that file from inside the app arrives in a coming update.
 
 ### Changed
