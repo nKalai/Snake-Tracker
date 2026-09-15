@@ -73,3 +73,12 @@ Two constraints shape the choice:
   wire format.
 - **CSV per table in a zip:** rejected — five files plus foreign-key coupling by
   hand, for no readability gain over one JSON document.
+
+## Erratum (recorded from the PR #34 review; the decision text stands)
+
+The Context and Consequences sections swap two child-issue references.
+Correct attribution: issue #26 is the export slice ("Export end-to-end")
+and issue #27 is the import engine ("Import engine: validation +
+replace-everything transaction"); the body names #26 as import / #27 as
+file I/O. Only these references are affected - the decision, its
+consequences, and the alternatives stand unchanged.
