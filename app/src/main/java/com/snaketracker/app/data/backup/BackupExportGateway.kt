@@ -33,12 +33,28 @@ class BackupExportContentGateway(
 
     override suspend fun save(destination: Uri, json: String): String =
         withContext(ioDispatcher) {
-            openDestinationStream(destination).use { stream ->
-                stream.write(json.toByteArray(Charsets.UTF_8))
-            }
+            writeJson(destination, json)
 
             savedFileName(destination)
         }
+
+    // Opening the destination already truncates it (mode "w"), so every
+    // throw from the write or the close - disk full, provider death - means
+    // the user's file is now empty or partial. Those get their own typed
+    // reason so the dialog can warn about the possibly-incomplete file
+    // instead of reporting a generic "unexpected error" (PR #34 review 🔴).
+    private fun writeJson(destination: Uri, json: String) {
+        val stream = openDestinationStream(destination)
+        try {
+            stream.use { it.write(json.toByteArray(Charsets.UTF_8)) }
+        } catch (e: Exception) {
+            throw BackupExportException(
+                BackupExportFailureReason.DESTINATION_UNWRITABLE,
+                "writing backup to $destination failed",
+                e
+            )
+        }
+    }
 
     // A destination that cannot be opened - null stream, refused grant,
     // unreadable target - is one typed failure: the reason reaches the

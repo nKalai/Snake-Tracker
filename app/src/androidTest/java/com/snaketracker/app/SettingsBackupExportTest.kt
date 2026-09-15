@@ -34,6 +34,7 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import java.util.concurrent.atomic.AtomicReference
 import org.junit.Before
 import org.junit.Rule
@@ -241,6 +242,31 @@ class SettingsBackupExportTest {
         val message = composeRule.activity.getString(R.string.backup_export_failure_message, reason)
         composeRule.onNodeWithText(message).assertIsDisplayed()
         composeRule.onNodeWithText(rawMessage, substring = true).assertDoesNotExist()
+    }
+
+    /**
+     * The write-phase reason must warn that the chosen file may now be
+     * incomplete — the destination was truncated before the write failed
+     * (PR #34 review 🔴), so generic "unexpected error" copy would lie.
+     */
+    @Test
+    fun unwritableExport_resultDialogWarnsTheFileMayBeIncomplete() {
+        viewModel = viewModelExportingTo {
+            throw BackupExportException(
+                BackupExportFailureReason.DESTINATION_UNWRITABLE,
+                "diagnostic detail that must stay out of the dialog"
+            )
+        }
+        val picker = TestPicker { name -> viewModel.exportBackup(pickedUri(name)) }
+        showSettings(picker)
+
+        composeRule.onNodeWithTag("export_backup_row").performClick()
+
+        val reason = composeRule.activity.getString(R.string.backup_export_failure_reason_unwritable)
+        assertTrue("reason copy must name the possibly-incomplete file", reason.contains("incomplete"))
+        val message = composeRule.activity.getString(R.string.backup_export_failure_message, reason)
+        composeRule.onNodeWithTag("backup_export_message").assertIsDisplayed()
+        composeRule.onNodeWithText(message).assertIsDisplayed()
     }
 
     private fun viewModelExportingTo(saveWith: suspend (String) -> String) = SnakeViewModel(

@@ -112,6 +112,32 @@ class SnakeViewModelBackupExportTest {
         )
     }
 
+    /**
+     * The write-phase reason must reach the dialog typed: the destination
+     * was already truncated when the write failed, so the copy has to warn
+     * about a possibly-incomplete file (PR #34 review 🔴).
+     */
+    @Test
+    fun `exportBackup gateway failure exposes the typed unwritable reason`() = runOnViewModelMain {
+        val viewModel = viewModelWith(
+            object : BackupExportGateway {
+                override suspend fun save(destination: Uri, json: String): String =
+                    throw BackupExportException(
+                        BackupExportFailureReason.DESTINATION_UNWRITABLE,
+                        "The chosen file could not be fully written."
+                    )
+            }
+        )
+
+        viewModel.exportBackup(TestUri)
+        advanceUntilIdle()
+
+        assertEquals(
+            BackupExportState.Failure(BackupExportFailureReason.DESTINATION_UNWRITABLE),
+            backupExportStateOf(viewModel)
+        )
+    }
+
     @Test
     fun `exportBackup untyped failure reports unknown reason and never leaks the raw message`() = runOnViewModelMain {
         // A raw Room/SQLite-style message with a storage path: exactly what

@@ -104,4 +104,25 @@ class BackupExportContentGatewayTest {
         assertEquals(BackupExportFailureReason.DESTINATION_UNOPENABLE, typed?.reason)
         assertTrue(typed is IOException)
     }
+
+    /**
+     * A provider that accepts the open but rejects every write (a full
+     * disk, a dying provider): the destination was already truncated at
+     * open, so this must be the typed DESTINATION_UNWRITABLE reason — never
+     * the generic "unexpected error" the dialog would otherwise show over
+     * a possibly-incomplete file (PR #34 review).
+     */
+    @Test
+    fun save_streamFailsMidWrite_throwsTypedUnwritableIoFailure() = runBlocking {
+        val destination = GatewayTestProvider.uri("failingwrite", "failing-write.json")
+
+        val failure = runCatching {
+            BackupExportContentGateway(context.contentResolver).save(destination, "{}")
+        }.exceptionOrNull()
+
+        val typed = failure as? BackupExportException
+        assertNotNull("expected a BackupExportException, got: $failure", typed)
+        assertEquals(BackupExportFailureReason.DESTINATION_UNWRITABLE, typed?.reason)
+        assertTrue(typed is IOException)
+    }
 }
