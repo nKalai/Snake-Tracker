@@ -1,0 +1,10 @@
+<journey name="Settings export backup">
+  <description>Export end-to-end (issue #26): open app, go to Settings, export a JSON backup through the system file picker, and verify the result dialog names the saved backup file.</description>
+  <actions>
+    <action>Launch Snake Tracker; verify the Calendar tab is shown with its title.</action>
+    <action>Tap the Settings tab in the bottom navigation bar; verify the Settings screen opens with an "Export backup" row.</action>
+    <action>Tap the "Export backup" row; verify the system create-document (Storage Access Framework) picker opens offering a JSON file named "snake-tracker-backup-&lt;today's date in yyyy-MM-dd&gt;.json".</action>
+    <action>Choose a save location (for example the Downloads folder), accept the suggested file name, and confirm; verify a "Backup saved" dialog appears whose message names the saved backup file.</action>
+    <action>Tap OK in the dialog; verify the dialog closes and the Settings screen is visible again.</action>
+  </actions>
+</journey>

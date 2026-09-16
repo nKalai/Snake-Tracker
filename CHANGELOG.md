@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+- JSON backup and restore. A new Settings tab with a gear icon joins Calendar, Snakes and Food Stock in the bottom navigation bar, offering two actions. "Export backup" saves everything the app knows — your snakes, feedings, sheds, weights, and food stock — as one portable JSON backup file, in a location you choose (the app suggests a name carrying today's date). "Import backup" restores everything from such a file: the app first warns, plainly, that importing replaces all your current data, then restores in one step and lists exactly what came back — or explains exactly why an untrusted file (unreadable, made by a newer version, incomplete, or far too large to be a backup) was rejected whole, leaving your data untouched. After a successful import, your feeding reminders are immediately brought up to date with the restored data.
+
 ### Changed
 - The app now targets Android 17 (API level 37), the newest stable Android release, so it runs under the current system rules on new phones. There is no visible change to how the app looks or works.
 - The app's build tools and libraries (Kotlin symbol processing, Jetpack Compose, Navigation, Room, coroutines test) were updated to their latest stable versions. There is no visible change to how the app looks or works.

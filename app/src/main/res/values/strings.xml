@@ -12,4 +12,66 @@
     <string name="notification_channel_description">Reminders for when a snake is due to be fed</string>
     <string name="notification_feeding_due_title">Feeding due: %1$s</string>
     <string name="notification_feeding_due_text">%1$s is due for a feeding today.</string>
+
+    <!-- Bottom-navigation tab labels (also the icon content descriptions). -->
+    <string name="nav_calendar">Calendar</string>
+    <string name="nav_snakes">Snakes</string>
+    <string name="nav_food_stock">Food Stock</string>
+    <string name="nav_settings">Settings</string>
+
+    <!-- Settings screen. -->
+    <string name="settings_title">Settings</string>
+
+    <!-- Backup export (Settings → SAF picker → result dialog). -->
+    <string name="settings_export_backup">Export backup</string>
+    <string name="settings_export_backup_summary">Save all tracker data as a JSON file you choose</string>
+    <string name="backup_export_success_title">Backup saved</string>
+    <string name="backup_export_success_message">Your backup was saved to %1$s.</string>
+    <string name="backup_export_failure_title">Backup failed</string>
+    <string name="backup_export_failure_message">The backup could not be saved: %1$s</string>
+    <string name="backup_export_failure_reason_destination">the chosen location could not be opened for writing</string>
+    <string name="backup_export_failure_reason_unwritable">the chosen file could not be fully written and may now be incomplete</string>
+    <string name="backup_export_failure_reason_unknown">an unexpected error occurred</string>
+    <string name="backup_export_dismiss">OK</string>
+
+    <!-- Backup import (Settings -> SAF picker -> confirm -> result dialog). -->
+    <string name="settings_import_backup">Import backup</string>
+    <string name="settings_import_backup_summary">Replace all tracker data from a JSON backup file</string>
+    <string name="backup_import_confirm_title">Replace everything with this backup?</string>
+    <string name="backup_import_confirm_message">Importing replaces all current data. Every snake, feeding, shed, weight, and food stock entry on this device will be deleted and restored from the backup file.</string>
+    <string name="backup_import_confirm_import">Import</string>
+    <string name="backup_import_confirm_cancel">Cancel</string>
+    <string name="backup_import_success_title">Backup imported</string>
+    <string name="backup_import_failure_title">Import failed</string>
+    <string name="backup_import_dismiss">OK</string>
+
+    <!-- One message per import failure reason (issue #28 WB4). -->
+    <string name="backup_import_failure_not_backup">This file is not a Snake Tracker backup.</string>
+    <string name="backup_import_failure_newer_version">This backup was made by a newer version of Snake Tracker. Update the app before importing it.</string>
+    <string name="backup_import_failure_orphan_rows">This backup contains records that belong to a snake the file does not include. It is not a complete backup.</string>
+    <string name="backup_import_failure_invalid_rows">This backup contains records with invalid ids and cannot be imported.</string>
+    <string name="backup_import_failure_unreadable">The selected file could not be read. Choose another file and try again.</string>
+    <string name="backup_import_failure_too_large">This file is far too large to be a Snake Tracker backup. Choose a JSON backup file.</string>
+    <string name="backup_import_failure_database">The import failed while writing to the database. Your existing data was left untouched.</string>
+
+    <plurals name="import_count_snakes">
+        <item quantity="one">%1$d snake</item>
+        <item quantity="other">%1$d snakes</item>
+    </plurals>
+    <plurals name="import_count_feedings">
+        <item quantity="one">%1$d feeding</item>
+        <item quantity="other">%1$d feedings</item>
+    </plurals>
+    <plurals name="import_count_sheds">
+        <item quantity="one">%1$d shed</item>
+        <item quantity="other">%1$d sheds</item>
+    </plurals>
+    <plurals name="import_count_weights">
+        <item quantity="one">%1$d weight</item>
+        <item quantity="other">%1$d weights</item>
+    </plurals>
+    <plurals name="import_count_food_stock">
+        <item quantity="one">%1$d food stock item</item>
+        <item quantity="other">%1$d food stock items</item>
+    </plurals>
 </resources>

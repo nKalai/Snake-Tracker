@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Debug-variant-only components for instrumented tests (same hosting pattern
+  as the androidx.compose.ui.test:manifest artifact): test activities must live
+  in the target app process, so they are declared here and never in the
+  androidTest manifest, which resolves to the separate .test process.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application>
+        <activity
+            android:name="com.snaketracker.app.testing.RecordingActivityResultActivity"
+            android:exported="false"
+            android:theme="@android:style/Theme.Material.Light.NoActionBar" />
+    </application>
+
+</manifest>

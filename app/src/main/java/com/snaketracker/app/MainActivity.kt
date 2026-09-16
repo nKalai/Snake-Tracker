@@ -22,7 +22,6 @@ import com.snaketracker.app.reminders.shouldShowExactAlarmPrompt
 import com.snaketracker.app.ui.screens.ExactAlarmPromptDialog
 import com.snaketracker.app.ui.theme.SnakeTrackerTheme
 import com.snaketracker.app.ui.viewmodel.SnakeViewModel
-import com.snaketracker.app.ui.viewmodel.ViewModelFactory
 
 class MainActivity : ComponentActivity() {
 
@@ -56,7 +55,10 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             SnakeTrackerTheme {
-                val viewModel: SnakeViewModel = viewModel(factory = ViewModelFactory(app.repository))
+                // The composition root wires objects, not policy: every
+                // backup collaborator - including the re-arm scheduling -
+                // is decided by Wiring.kt at the Application (PR #34 🟢).
+                val viewModel: SnakeViewModel = viewModel(factory = app.viewModelFactory)
                 SnakeTrackerNavGraph(viewModel = viewModel)
 
                 if (showExactAlarmPrompt) {

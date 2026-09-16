@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Test-APK manifest: registers GatewayTestProvider (see the class KDoc) so
+  instrumented gateway tests can drive ContentResolver behaviors - a real
+  DISPLAY_NAME answer, a throwing query, a null output stream - that a
+  scratch `file://` destination cannot reproduce. ContentResolver's own
+  query/openOutputStream are final, so a subclass stub is not an option.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application>
+        <provider
+            android:name="com.snaketracker.app.data.backup.GatewayTestProvider"
+            android:authorities="com.snaketracker.app.test.gateway"
+            android:exported="true" />
+    </application>
+
+</manifest>
