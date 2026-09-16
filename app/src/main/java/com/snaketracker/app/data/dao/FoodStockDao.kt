@@ -12,8 +12,16 @@ interface FoodStockDao {
     @Query("SELECT * FROM food_stock WHERE id = :id")
     suspend fun getById(id: Long): FoodStockItem?
 
+    // One-shot dump of the whole table, ordered by id for deterministic output.
+    @Query("SELECT * FROM food_stock ORDER BY id ASC")
+    suspend fun getAllOnce(): List<FoodStockItem>
+
     @Insert
     suspend fun insert(item: FoodStockItem): Long
+
+    // Whole-table wipe; used only inside the import replace-everything transaction.
+    @Query("DELETE FROM food_stock")
+    suspend fun deleteAll()
 
     @Update
     suspend fun update(item: FoodStockItem)
