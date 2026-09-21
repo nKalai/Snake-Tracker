@@ -21,7 +21,7 @@ class ReminderSchedulerTest {
     }
 
     @Test
-    fun android12Plus_fallsBackToInexact_whenThePermissionIsDenied() {
+    fun android12Plus_fallsBackToTheBoundedWindow_whenThePermissionIsDenied() {
         assertFalse(shouldUseExactApi(sdkInt = 31, exactPermissionHeld = false))
         assertFalse(shouldUseExactApi(sdkInt = 34, exactPermissionHeld = false))
     }
@@ -51,7 +51,7 @@ class ReminderSchedulerTest {
             sdkInt = 34,
             exactPermissionHeld = true,
             setExact = { calls.add("exact") },
-            setInexact = { calls.add("inexact") }
+            setInexact = { calls.add("window") }
         )
 
         assertEquals(listOf("exact"), calls)
