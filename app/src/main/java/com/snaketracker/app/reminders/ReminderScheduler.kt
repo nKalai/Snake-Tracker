@@ -68,7 +68,9 @@ internal const val FALLBACK_WINDOW_MILLIS = 10L * 60L * 1000L
  * rather than at the next opportunistic wakeup.
  */
 object ReminderScheduler {
-    private const val ALARM_REQUEST_CODE = 4001
+    // The one request code of the single alarm; also the lookup key the
+    // instrumented extras test reads the armed PendingIntent back with.
+    internal const val ALARM_REQUEST_CODE = 4001
 
     fun reschedule(context: Context, payload: FrozenDuePayload) {
         val at = payload.nextAlarmAt
