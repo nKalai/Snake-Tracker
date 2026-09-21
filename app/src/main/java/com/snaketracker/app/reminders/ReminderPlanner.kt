@@ -61,8 +61,9 @@ object ReminderPlanner {
     }
 
     // Calendar date of the last feeding (in `zone`) plus the interval, normalized
-    // to DUE_HOUR local time.
-    private fun dueInstantFor(lastFeedingAt: Instant, intervalDays: Int, zone: ZoneId): Instant {
+    // to DUE_HOUR local time. Shared with the payload freeze, which selects the
+    // snakes due at the armed instant (issue #37).
+    internal fun dueInstantFor(lastFeedingAt: Instant, intervalDays: Int, zone: ZoneId): Instant {
         val feedingDate = lastFeedingAt.atZone(zone).toLocalDate()
         val dueDate = feedingDate.plusDays(intervalDays.toLong())
         return ZonedDateTime.of(dueDate, LocalTime.of(DUE_HOUR, 0), zone).toInstant()
