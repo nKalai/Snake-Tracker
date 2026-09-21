@@ -19,6 +19,11 @@ data class ReminderCandidate(
 /**
  * The planner's output: the snakes due right now and the single next instant at
  * which the planner should run again (null when there are no candidates).
+ *
+ * Since the frozen-payload seam (issue #37), production reads only
+ * [nextAlarmAt] — the armed alarm's due set comes from [freezeDuePayload] —
+ * so [dueSnakeIds] is consumed by `ReminderPlannerTest` alone, where it pins
+ * the planner's due-now semantics directly.
  */
 data class ReminderPlan(
     val dueSnakeIds: Set<Long>,
