@@ -30,3 +30,31 @@ internal fun nextAlarmAtFlow(
             zone = zone
         )
     }.distinctUntilChanged()
+
+/**
+ * The launch-time observer's pass (issue #40 WB1/WB2): collects the stream and
+ * runs the full snapshot→notify→re-arm sequence once per distinct frozen
+ * payload, so a cold start posts the already-due snakes immediately instead of
+ * waiting for the next due hour, and the alarm is armed for the following
+ * instant. The stream's [distinctUntilChanged] dedupes upstream, so a data
+ * change that leaves the payload identical runs no second pass. A null
+ * [notify] is the reschedule-only shape (issue #28 WB5): the payload goes
+ * straight to the scheduler seam and nothing posts (issue #40 WB4).
+ */
+internal suspend fun launchArmingPass(
+    payloadFlow: Flow<FrozenDuePayload>,
+    notify: ((FrozenDueSnake) -> Unit)?,
+    reschedule: suspend (FrozenDuePayload) -> Unit
+) {
+    payloadFlow.collect { frozen ->
+        if (notify == null) {
+            reschedule(frozen)
+        } else {
+            notifyFrozenPayloadAndReschedule(
+                payload = frozen,
+                notify = notify,
+                reschedule = { reschedule(frozen) }
+            )
+        }
+    }
+}
