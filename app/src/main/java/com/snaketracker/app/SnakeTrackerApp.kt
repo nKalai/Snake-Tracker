@@ -84,8 +84,8 @@ class SnakeTrackerApp : Application() {
                     lastFeedings = repository.getLastFeedingPerSnake(),
                     now = { Instant.now() },
                     zone = ZoneId.systemDefault()
-                ).collect { next ->
-                    ReminderScheduler.reschedule(this@SnakeTrackerApp, next)
+                ).collect { frozen ->
+                    ReminderScheduler.reschedule(this@SnakeTrackerApp, frozen)
                 }
             }
         }

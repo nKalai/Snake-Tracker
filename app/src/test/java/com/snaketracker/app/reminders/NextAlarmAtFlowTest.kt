@@ -39,7 +39,10 @@ class NextAlarmAtFlowTest {
             zone = zone
         ).toList()
 
-        assertEquals(listOf(Instant.parse("2026-09-15T07:00:00Z")), emissions)
+        assertEquals(
+            listOf(FrozenDuePayload(emptyList(), Instant.parse("2026-09-15T07:00:00Z"))),
+            emissions
+        )
     }
 
     @Test
@@ -55,17 +58,20 @@ class NextAlarmAtFlowTest {
         ).toList()
 
         assertEquals(
-            listOf(Instant.parse("2026-09-15T07:00:00Z"), Instant.parse("2026-09-16T07:00:00Z")),
+            listOf(
+                FrozenDuePayload(emptyList(), Instant.parse("2026-09-15T07:00:00Z")),
+                FrozenDuePayload(emptyList(), Instant.parse("2026-09-16T07:00:00Z"))
+            ),
             emissions
         )
     }
 
     @Test
     fun suppressesReEmission_whenDataChangesButTheComputedInstantDoesNot() = runBlocking {
-        // Adding an older feeding row leaves the last-feeding instant (and the
-        // next alarm) untouched: the change must not re-arm.
+        // Adding an older feeding row leaves the paired last-feeding instant
+        // (and the frozen payload) untouched: the change must not re-arm.
         val latestOnly = listOf(LastFeedingInfo(snakeId = 1, lastDate = epochMillisOf("2026-09-12T20:00")))
-        val latestPlusOlder = latestOnly + LastFeedingInfo(snakeId = 1, lastDate = epochMillisOf("2026-09-01T20:00"))
+        val latestPlusOlder = listOf(LastFeedingInfo(snakeId = 1, lastDate = epochMillisOf("2026-09-01T20:00"))) + latestOnly
 
         val emissions = nextAlarmAtFlow(
             snakes = flow { emit(listOf(snake)) },
@@ -74,11 +80,36 @@ class NextAlarmAtFlowTest {
             zone = zone
         ).toList()
 
-        assertEquals(listOf(Instant.parse("2026-09-15T07:00:00Z")), emissions)
+        assertEquals(
+            listOf(FrozenDuePayload(emptyList(), Instant.parse("2026-09-15T07:00:00Z"))),
+            emissions
+        )
     }
 
     @Test
-    fun emitsNull_whenThereAreNoReminderEnabledSnakes_soEverythingIsCancelled() = runBlocking {
+    fun emissionCarriesTheFrozenDueSnakes_soEveryArmedAlarmFreezesItsPayload() = runBlocking {
+        // Never-fed snake: due immediately, so the emission's frozen payload
+        // carries its id and name next to the next instant (issue #37 WB1).
+        val emissions = nextAlarmAtFlow(
+            snakes = flow { emit(listOf(snake)) },
+            lastFeedings = flow { emit(emptyList<LastFeedingInfo>()) },
+            now = { now },
+            zone = zone
+        ).toList()
+
+        assertEquals(
+            listOf(
+                FrozenDuePayload(
+                    dueSnakes = listOf(FrozenDueSnake(1, "Noodle")),
+                    nextAlarmAt = Instant.parse("2026-09-15T07:00:00Z")
+                )
+            ),
+            emissions
+        )
+    }
+
+    @Test
+    fun emitsEmptyPayload_whenThereAreNoReminderEnabledSnakes_soEverythingIsCancelled() = runBlocking {
         val emissions = nextAlarmAtFlow(
             snakes = flow { emit(emptyList<Snake>()) },
             lastFeedings = flow { emit(emptyList<LastFeedingInfo>()) },
@@ -86,7 +117,7 @@ class NextAlarmAtFlowTest {
             zone = zone
         ).toList()
 
-        assertEquals(listOf(null), emissions)
+        assertEquals(listOf(FrozenDuePayload(emptyList(), null)), emissions)
     }
 
     @Test
@@ -100,7 +131,7 @@ class NextAlarmAtFlowTest {
             zone = zone
         ).toList()
 
-        assertEquals(listOf(null), emissions)
+        assertEquals(listOf(FrozenDuePayload(emptyList(), null)), emissions)
     }
 
     @Test
@@ -114,7 +145,13 @@ class NextAlarmAtFlowTest {
             zone = zone
         ).toList()
 
-        assertEquals(listOf(null, Instant.parse("2026-09-15T07:00:00Z")), emissions)
+        assertEquals(
+            listOf(
+                FrozenDuePayload(emptyList(), null),
+                FrozenDuePayload(emptyList(), Instant.parse("2026-09-15T07:00:00Z"))
+            ),
+            emissions
+        )
     }
 
     @Test
@@ -128,8 +165,15 @@ class NextAlarmAtFlowTest {
             zone = zone
         ).toList()
 
-        // Armed -> cancelled: the second emission must be null so the receiver
-        // side cancels the previously armed alarm instead of leaving it stale.
-        assertEquals(listOf(Instant.parse("2026-09-15T07:00:00Z"), null), emissions)
+        // Armed -> cancelled: the second emission must carry no next instant so
+        // the receiver side cancels the previously armed alarm instead of
+        // leaving it stale.
+        assertEquals(
+            listOf(
+                FrozenDuePayload(emptyList(), Instant.parse("2026-09-15T07:00:00Z")),
+                FrozenDuePayload(emptyList(), null)
+            ),
+            emissions
+        )
     }
 }

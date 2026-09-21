@@ -25,6 +25,25 @@ internal fun notifyDueSnakesAndReschedule(
 }
 
 /**
+ * The frozen-payload counterpart to [notifyDueSnakesAndReschedule], used on
+ * the alarm-fire path (issue #37 WB2/WB3): posts one notification per frozen
+ * snake straight from the decoded intent extras — no database read in the
+ * notification path — and only then runs the re-arm [reschedule] (the fresh
+ * snapshot→plan pass that arms the next instant or cancels when there is
+ * none). An empty payload posts nothing and still re-arms (issue #37 WB4).
+ */
+internal suspend fun notifyFrozenPayloadAndReschedule(
+    payload: FrozenDuePayload,
+    notify: (FrozenDueSnake) -> Unit,
+    reschedule: suspend () -> Unit
+) {
+    for (snake in payload.dueSnakes) {
+        notify(snake)
+    }
+    reschedule()
+}
+
+/**
  * The reschedule-only counterpart to [notifyDueSnakesAndReschedule]: moves the
  * single alarm to the plan's [ReminderPlan.nextAlarmAt] (or cancels it when
  * there is none) and posts no due-now notification - by construction this
@@ -55,6 +74,8 @@ object ReminderArming {
     suspend fun refresh(context: Context) {
         val appContext = context.applicationContext
         val (candidates, plan) = snapshotAndPlan(appContext)
+        // One payload per arming, frozen from this very plan (issue #37 WB1).
+        val frozen = freezeDuePayload(plan, candidates)
         notifyDueSnakesAndReschedule(
             candidates = candidates,
             plan = plan,
@@ -63,7 +84,7 @@ object ReminderArming {
                     appContext, candidate.snakeId, candidate.name
                 )
             },
-            reschedule = { at -> ReminderScheduler.reschedule(appContext, at) }
+            reschedule = { _ -> ReminderScheduler.reschedule(appContext, frozen) }
         )
     }
 
@@ -76,9 +97,10 @@ object ReminderArming {
      */
     suspend fun reschedule(context: Context) {
         val appContext = context.applicationContext
-        val (_, plan) = snapshotAndPlan(appContext)
-        rescheduleToNextAlarm(plan) { at ->
-            ReminderScheduler.reschedule(appContext, at)
+        val (candidates, plan) = snapshotAndPlan(appContext)
+        val frozen = freezeDuePayload(plan, candidates)
+        rescheduleToNextAlarm(plan) { _ ->
+            ReminderScheduler.reschedule(appContext, frozen)
         }
     }
 

@@ -1,5 +1,6 @@
 package com.snaketracker.app.reminders
 
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import java.time.Instant
@@ -98,5 +99,45 @@ class ReminderArmingTest {
         rescheduleToNextAlarm(ReminderPlan(emptySet(), null)) { at -> rescheduledAt = at }
 
         assertEquals(null, rescheduledAt)
+    }
+
+    /**
+     * Issue #37 WB2/WB3: on alarm fire the notification path runs straight off
+     * the frozen payload — one post per frozen snake, in order — and the
+     * re-arm happens only after every post, so the shade fills before the
+     * Room-backed reschedule starts.
+     */
+    @Test
+    fun frozenPayload_notifiesEverySnake_thenReschedules_last() = runBlocking {
+        val payload = FrozenDuePayload(
+            dueSnakes = listOf(FrozenDueSnake(1, "Noodle"), FrozenDueSnake(3, "Coil")),
+            nextAlarmAt = Instant.parse("2026-09-15T07:00:00Z")
+        )
+        val calls = mutableListOf<String>()
+
+        notifyFrozenPayloadAndReschedule(
+            payload = payload,
+            notify = { snake -> calls.add("notify:${snake.snakeId}:${snake.name}") },
+            reschedule = { calls.add("reschedule") }
+        )
+
+        assertEquals(listOf("notify:1:Noodle", "notify:3:Coil", "reschedule"), calls)
+    }
+
+    /**
+     * Issue #37 WB4: an extras payload with no snakes posts nothing and still
+     * runs the re-arm, so a bare alarm can never stall the reminder chain.
+     */
+    @Test
+    fun emptyFrozenPayload_postsNothing_andStillReschedules() = runBlocking {
+        val calls = mutableListOf<String>()
+
+        notifyFrozenPayloadAndReschedule(
+            payload = FrozenDuePayload(emptyList(), null),
+            notify = { calls.add("notify:${it.snakeId}") },
+            reschedule = { calls.add("reschedule") }
+        )
+
+        assertEquals(listOf("reschedule"), calls)
     }
 }
