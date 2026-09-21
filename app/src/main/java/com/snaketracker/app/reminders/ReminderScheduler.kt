@@ -51,11 +51,19 @@ internal fun armViaPermissionLadder(
 }
 
 /**
+ * The stated bound of the fallback window the ungranted rung arms with: the
+ * alarm fires between the due instant and due + this length, so a device
+ * without the exact-alarm grant still gets its reminder within 10 minutes of
+ * the due hour (issue #36 WB2).
+ */
+internal const val FALLBACK_WINDOW_MILLIS = 10L * 60L * 1000L
+
+/**
  * Arms exactly one alarm for the next feeding-due instant. Exact while idle
- * when the permission ladder allows it (degrading to the inexact fallback if
- * the permission is revoked between check and set), inexact while idle
- * (~15-minute tolerance) otherwise — the reminder still lands on the correct
- * day.
+ * when the permission ladder allows it (degrading to the bounded-window
+ * fallback if the permission is revoked between check and set), otherwise a
+ * window alarm bounded to [FALLBACK_WINDOW_MILLIS] — delivered inside the
+ * stated window rather than at the next opportunistic wakeup.
  */
 object ReminderScheduler {
     private const val ALARM_REQUEST_CODE = 4001
@@ -82,8 +90,11 @@ object ReminderScheduler {
                 )
             },
             setInexact = {
-                alarmManager.setAndAllowWhileIdle(
-                    AlarmManager.RTC_WAKEUP, triggerAtMillis, operation
+                alarmManager.setWindow(
+                    AlarmManager.RTC_WAKEUP,
+                    triggerAtMillis,
+                    FALLBACK_WINDOW_MILLIS,
+                    operation
                 )
             }
         )
