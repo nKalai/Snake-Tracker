@@ -1,6 +1,7 @@
 package com.snaketracker.app.reminders
 
 import java.time.Instant
+import java.time.ZoneId
 
 /**
  * One frozen due-now snake: its id doubles as the notification id and its name
@@ -22,22 +23,34 @@ data class FrozenDuePayload(
 // `<id|name>` pair per index below it, and the next-alarm epoch millis.
 internal const val DUE_SNAKE_COUNT_KEY = "due_snake_count"
 internal const val NEXT_ALARM_AT_KEY = "next_alarm_at"
-private const val DUE_SNAKE_KEY_PREFIX = "due_snake_"
+internal const val DUE_SNAKE_KEY_PREFIX = "due_snake_"
 
 /**
- * Freezes the plan's due-now set against the candidates it was planned from:
- * one entry per due snake (in candidate order) carrying id and name, plus the
- * plan's next-alarm instant (issue #37 WB1).
+ * Freezes the set due **at the armed instant** against the candidates the plan
+ * was computed from: never-fed snakes plus every fed snake whose due instant
+ * has passed by [ReminderPlan.nextAlarmAt] (so the fire at that instant posts
+ * exactly what comes due then, with no one-day lag), in candidate order, plus
+ * the plan's next-alarm instant (issue #37 WB1).
  */
 internal fun freezeDuePayload(
     plan: ReminderPlan,
-    candidates: List<ReminderCandidate>
-): FrozenDuePayload = FrozenDuePayload(
-    dueSnakes = candidates
-        .filter { it.snakeId in plan.dueSnakeIds }
-        .map { FrozenDueSnake(it.snakeId, it.name) },
-    nextAlarmAt = plan.nextAlarmAt
-)
+    candidates: List<ReminderCandidate>,
+    zone: ZoneId
+): FrozenDuePayload {
+    val armedAt = plan.nextAlarmAt
+    return FrozenDuePayload(
+        dueSnakes = candidates
+            .filter { candidate ->
+                armedAt != null &&
+                    (candidate.lastFeedingAt == null ||
+                        ReminderPlanner.dueInstantFor(
+                            candidate.lastFeedingAt, candidate.feedingIntervalDays, zone
+                        ) <= armedAt)
+            }
+            .map { FrozenDueSnake(it.snakeId, it.name) },
+        nextAlarmAt = armedAt
+    )
+}
 
 /**
  * Encodes the frozen payload into a flat string map for the alarm's intent

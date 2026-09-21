@@ -26,6 +26,7 @@ internal fun nextAlarmAtFlow(
         val candidates = buildReminderCandidates(snakeList.filter { it.remindersEnabled }, feedingList)
         freezeDuePayload(
             plan = ReminderPlanner.plan(candidates = candidates, now = now(), zone = zone),
-            candidates = candidates
+            candidates = candidates,
+            zone = zone
         )
     }.distinctUntilChanged()

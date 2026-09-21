@@ -29,7 +29,7 @@ class DuePayloadTest {
     fun freeze_takesEveryDueSnakeIdAndNameInCandidateOrder_plusTheNextInstant() {
         val plan = ReminderPlanner.plan(candidates, now, zone)
 
-        val payload = freezeDuePayload(plan, candidates)
+        val payload = freezeDuePayload(plan, candidates, zone)
 
         // Noodle (overdue) and Coil (never fed) are due now; Future is not.
         // Overdue at 12:00 local with today's 09:00 passed → next 09:00 tomorrow.
@@ -43,10 +43,32 @@ class DuePayloadTest {
     }
 
     @Test
+    fun payload_listsTheSnakesDueAtTheArmedInstant() {
+        // A single not-yet-due snake: fed 2026-09-12 20:00 local, interval 3 →
+        // due 2026-09-15 09:00 local — the very instant the alarm is armed for.
+        val soonOnly = listOf(
+            ReminderCandidate(2, "Future", 3, Instant.parse("2026-09-12T18:00:00Z"))
+        )
+        val plan = ReminderPlanner.plan(soonOnly, now, zone)
+
+        val payload = freezeDuePayload(plan, soonOnly, zone)
+
+        // The fire at the armed instant must post the snake that becomes due
+        // at that instant, not an empty list one day before it (issue #37 F1).
+        assertEquals(
+            FrozenDuePayload(
+                dueSnakes = listOf(FrozenDueSnake(2, "Future")),
+                nextAlarmAt = Instant.parse("2026-09-15T07:00:00Z")
+            ),
+            payload
+        )
+    }
+
+    @Test
     fun encodeDecodeRoundTrip_preservesEveryDueSnakeIdAndName_plusTheNextInstant() {
         val plan = ReminderPlanner.plan(candidates, now, zone)
 
-        val decoded = decodeDuePayload(encodeDuePayload(freezeDuePayload(plan, candidates)))
+        val decoded = decodeDuePayload(encodeDuePayload(freezeDuePayload(plan, candidates, zone)))
 
         assertEquals(
             listOf(FrozenDueSnake(1, "Noodle"), FrozenDueSnake(3, "Coil")),
@@ -58,7 +80,7 @@ class DuePayloadTest {
     @Test
     fun emptyPlan_encodesAndDecodesToNoSnakes_andNoNextInstant() {
         val decoded = decodeDuePayload(
-            encodeDuePayload(freezeDuePayload(ReminderPlan(emptySet(), null), emptyList()))
+            encodeDuePayload(freezeDuePayload(ReminderPlan(emptySet(), null), emptyList(), zone))
         )
 
         assertEquals(emptyList<FrozenDueSnake>(), decoded.dueSnakes)
@@ -70,6 +92,24 @@ class DuePayloadTest {
         // A bare intent (no frozen payload) must still decode cleanly so the
         // receiver can post nothing and re-arm (issue #37 WB4).
         assertEquals(FrozenDuePayload(emptyList(), null), decodeDuePayload(emptyMap()))
+    }
+
+    @Test
+    fun partialExtras_decodeTheEntriesThatArePresent() {
+        // A truncated Bundle: the count says two snakes but only index 0 made
+        // it in. The present entry still decodes, the missing one simply
+        // drops, and the next instant still reads (issue #37 WB4).
+        val extras = mapOf(
+            DUE_SNAKE_COUNT_KEY to "2",
+            "${DUE_SNAKE_KEY_PREFIX}0_id" to "1",
+            "${DUE_SNAKE_KEY_PREFIX}0_name" to "Noodle",
+            NEXT_ALARM_AT_KEY to "1789455600000" // 2026-09-15T07:00:00Z
+        )
+
+        val decoded = decodeDuePayload(extras)
+
+        assertEquals(listOf(FrozenDueSnake(1, "Noodle")), decoded.dueSnakes)
+        assertEquals(Instant.parse("2026-09-15T07:00:00Z"), decoded.nextAlarmAt)
     }
 
     @Test

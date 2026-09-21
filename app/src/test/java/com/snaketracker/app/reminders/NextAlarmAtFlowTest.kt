@@ -40,7 +40,14 @@ class NextAlarmAtFlowTest {
         ).toList()
 
         assertEquals(
-            listOf(FrozenDuePayload(emptyList(), Instant.parse("2026-09-15T07:00:00Z"))),
+            // Noodle becomes due exactly at the armed instant, so the frozen
+            // payload carries it beside that instant (issue #37 F1).
+            listOf(
+                FrozenDuePayload(
+                    dueSnakes = listOf(FrozenDueSnake(1, "Noodle")),
+                    nextAlarmAt = Instant.parse("2026-09-15T07:00:00Z")
+                )
+            ),
             emissions
         )
     }
@@ -59,8 +66,14 @@ class NextAlarmAtFlowTest {
 
         assertEquals(
             listOf(
-                FrozenDuePayload(emptyList(), Instant.parse("2026-09-15T07:00:00Z")),
-                FrozenDuePayload(emptyList(), Instant.parse("2026-09-16T07:00:00Z"))
+                FrozenDuePayload(
+                    dueSnakes = listOf(FrozenDueSnake(1, "Noodle")),
+                    nextAlarmAt = Instant.parse("2026-09-15T07:00:00Z")
+                ),
+                FrozenDuePayload(
+                    dueSnakes = listOf(FrozenDueSnake(1, "Noodle")),
+                    nextAlarmAt = Instant.parse("2026-09-16T07:00:00Z")
+                )
             ),
             emissions
         )
@@ -81,7 +94,12 @@ class NextAlarmAtFlowTest {
         ).toList()
 
         assertEquals(
-            listOf(FrozenDuePayload(emptyList(), Instant.parse("2026-09-15T07:00:00Z"))),
+            listOf(
+                FrozenDuePayload(
+                    dueSnakes = listOf(FrozenDueSnake(1, "Noodle")),
+                    nextAlarmAt = Instant.parse("2026-09-15T07:00:00Z")
+                )
+            ),
             emissions
         )
     }
@@ -148,7 +166,10 @@ class NextAlarmAtFlowTest {
         assertEquals(
             listOf(
                 FrozenDuePayload(emptyList(), null),
-                FrozenDuePayload(emptyList(), Instant.parse("2026-09-15T07:00:00Z"))
+                FrozenDuePayload(
+                    dueSnakes = listOf(FrozenDueSnake(1, "Noodle")),
+                    nextAlarmAt = Instant.parse("2026-09-15T07:00:00Z")
+                )
             ),
             emissions
         )
@@ -170,8 +191,40 @@ class NextAlarmAtFlowTest {
         // leaving it stale.
         assertEquals(
             listOf(
-                FrozenDuePayload(emptyList(), Instant.parse("2026-09-15T07:00:00Z")),
+                FrozenDuePayload(
+                    dueSnakes = listOf(FrozenDueSnake(1, "Noodle")),
+                    nextAlarmAt = Instant.parse("2026-09-15T07:00:00Z")
+                ),
                 FrozenDuePayload(emptyList(), null)
+            ),
+            emissions
+        )
+    }
+
+    @Test
+    fun renameReArms_soTheFrozenTextStaysFresh() = runBlocking {
+        // A name-only change leaves the computed instant untouched, but the
+        // dedupe compares the whole frozen payload, so the renamed snake
+        // re-arms and the extras never carry the stale name (issue #37).
+        val feedings = listOf(LastFeedingInfo(snakeId = 1, lastDate = epochMillisOf("2026-09-12T20:00")))
+
+        val emissions = nextAlarmAtFlow(
+            snakes = flow { emit(listOf(snake)); emit(listOf(snake.copy(name = "Noodle II"))) },
+            lastFeedings = flow { emit(feedings) },
+            now = { now },
+            zone = zone
+        ).toList()
+
+        assertEquals(
+            listOf(
+                FrozenDuePayload(
+                    dueSnakes = listOf(FrozenDueSnake(1, "Noodle")),
+                    nextAlarmAt = Instant.parse("2026-09-15T07:00:00Z")
+                ),
+                FrozenDuePayload(
+                    dueSnakes = listOf(FrozenDueSnake(1, "Noodle II")),
+                    nextAlarmAt = Instant.parse("2026-09-15T07:00:00Z")
+                )
             ),
             emissions
         )
