@@ -123,12 +123,14 @@ class ColdStartArmingTest {
     }
 
     /**
-     * WB4 (with #28 WB5): the reschedule-only entry — the backup-import hook's
-     * shape — hands the payload straight to the scheduler seam: the alarm
-     * moves to the plan's instant, and no notification posts at all.
+     * The surviving [launchArmingPass] seam with a snake due exactly at the
+     * armed instant (Noodle, fed 09-12, interval 3): the frozen payload
+     * carries it, so the pass posts it once and moves the alarm to that
+     * instant. The notify-free reschedule-only shape is owned by
+     * [ReminderArming.reschedule], pinned in ReminderArmingTest (issue #28 WB5).
      */
     @Test
-    fun rescheduleOnlyEntry_movesTheAlarm_andPostsNothing() = runBlocking {
+    fun noSnakeDueYet_movesTheAlarm_andPostsNothing() = runBlocking {
         val snake = Snake(id = 1, name = "Noodle", feedingIntervalDays = 3)
         val feedings = listOf(LastFeedingInfo(snakeId = 1, lastDate = epochMillisOf("2026-09-12T20:00")))
         val calls = mutableListOf<String>()
@@ -140,10 +142,10 @@ class ColdStartArmingTest {
                 now = { now },
                 zone = zone
             ),
-            notify = null,
+            notify = { snake1 -> calls.add("notify:${snake1.snakeId}") },
             reschedule = { payload -> calls.add("arm:${payload.nextAlarmAt}") }
         )
 
-        assertEquals(listOf("arm:2026-09-15T07:00:00Z"), calls)
+        assertEquals(listOf("notify:1", "arm:2026-09-15T07:00:00Z"), calls)
     }
 }
