@@ -10,6 +10,7 @@ All notable changes to this project will be documented in this file.
 ### Changed
 - The app now targets Android 17 (API level 37), the newest stable Android release, so it runs under the current system rules on new phones. There is no visible change to how the app looks or works.
 - The app's build tools and libraries (Kotlin symbol processing, Jetpack Compose, Navigation, Room, coroutines test) were updated to their latest stable versions. There is no visible change to how the app looks or works.
+- On phones that don't allow exact alarms, a feeding reminder now arrives within a stated ten-minute window of its scheduled time, instead of at an unspecified moment.
 
 ## [1.1] - versionCode 3
 
