@@ -13,6 +13,7 @@ All notable changes to this project will be documented in this file.
 - On phones that don't allow exact alarms, a feeding reminder now arrives within a stated ten-minute window of its scheduled time, instead of at an unspecified moment.
 - When a feeding reminder fires, the shade now shows the due snakes immediately: the due list travels inside the alarm itself, so the notification no longer waits on the data store to be read first. The list shown is exactly the snakes due at that alarm's moment — a renamed snake appears under its new name — and an alarm that carries no due snakes posts nothing while still setting up the next reminder.
 - Feeding reminders now follow your clock right away. Set the time by hand, or travel into a different time zone, and the next reminder is recalculated for the new local time — a reminder set for 9:00 still arrives at 9:00 where you are now, instead of at the old time.
+- Reopening the app now shows feeding reminders right away. On launch, every snake already due is listed immediately in the notification shade, and the next reminder is set right after — no more blank stretch where an overdue snake sits unnotified until the next alarm fires.
 
 ## [1.1] - versionCode 3
 
