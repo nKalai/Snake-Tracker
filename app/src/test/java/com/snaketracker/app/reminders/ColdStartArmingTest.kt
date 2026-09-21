@@ -98,6 +98,31 @@ class ColdStartArmingTest {
     }
 
     /**
+     * WB2 cancel clause at the launch seam: with an empty payload — no due
+     * snakes and no next instant — the non-null [notify] branch of
+     * [launchArmingPass] posts nothing and still runs the re-arm once, so the
+     * recorder holds exactly one arm carrying the null instant (the cancel)
+     * and no notify line.
+     */
+    @Test
+    fun emptyPayload_viaNotifyBranch_cancelsWithoutPosting() = runBlocking {
+        val calls = mutableListOf<String>()
+
+        launchArmingPass(
+            payloadFlow = nextAlarmAtFlow(
+                snakes = flow { emit(emptyList()) },
+                lastFeedings = flow { emit(emptyList()) },
+                now = { now },
+                zone = zone
+            ),
+            notify = { snake -> calls.add("notify:${snake.snakeId}") },
+            reschedule = { payload -> calls.add("arm:${payload.nextAlarmAt}") }
+        )
+
+        assertEquals(listOf("arm:null"), calls)
+    }
+
+    /**
      * WB4 (with #28 WB5): the reschedule-only entry — the backup-import hook's
      * shape — hands the payload straight to the scheduler seam: the alarm
      * moves to the plan's instant, and no notification posts at all.
